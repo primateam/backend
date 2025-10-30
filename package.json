@@ -7,7 +7,7 @@
     "dev": "node --watch src/index.js",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio --host 0.0.0.0"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.5",
