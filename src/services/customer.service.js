@@ -1,4 +1,4 @@
-import { db } from "../db.js";
+import { db } from "../db/index.js";
 import { customer } from "../db/schema.js";
 
 class CustomerService {
