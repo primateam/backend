@@ -1,5 +1,5 @@
-import { db } from "../db";
-import { customer } from "../db/schema";
+import { db } from "../db.js";
+import { customer } from "../db/schema.js";
 
 class CustomerService {
   async getCustomers({ limit = 10 }) {
