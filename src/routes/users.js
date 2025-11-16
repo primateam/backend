@@ -3,13 +3,12 @@ import { usersController } from '../controllers/users.controller.js';
 
 const userRouter = new Hono();
 
-const dummyHandler = (c) => {
-  return c.text('This is a placeholder for users routes.');
-};
-
 userRouter.get('/', usersController.getUsers);
-userRouter.get('/:user_id/', dummyHandler);
-userRouter.patch('/:user_id/', dummyHandler);
-userRouter.delete('/:user_id/', dummyHandler);
+userRouter.post('/', usersController.createUser);
+userRouter.get('/:user_id/', usersController.getUserById);
+userRouter.patch('/:user_id/', usersController.updateUser);
+userRouter.delete('/:user_id/', usersController.deleteUser);
+userRouter.get('/:user_id/customers', usersController.getUserCustomers);
+userRouter.get('/:user_id/interactions', usersController.getUserInteractions);
 
 export default userRouter;
