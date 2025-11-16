@@ -1,4 +1,4 @@
-import { customerService } from "../services/customer.service.js";
+import { customerService } from '../services/customer.service.js';
 
 export const customerController = {
   async getCustomers(c) {
@@ -8,7 +8,7 @@ export const customerController = {
       return c.json(customers);
     } catch (error) {
       console.error(error);
-      return c.json({ error: "Internal Server Error" }, 500);
+      return c.json({ error: 'Internal Server Error' }, 500);
     }
   },
 };

@@ -1,5 +1,5 @@
-import { db } from "../db/index.js";
-import { customer } from "../db/schema.js";
+import { db } from '../db/index.js';
+import { customer } from '../db/schema.js';
 
 class CustomerService {
   async getCustomers({ limit = 10 }) {
@@ -8,7 +8,7 @@ class CustomerService {
       return customers;
     } catch (error) {
       console.error(error);
-      throw new Error("Failed to fetch customers");
+      throw new Error('Failed to fetch customers');
     }
   }
 }
