@@ -12,19 +12,19 @@ export const user = pgTable('user', {
   fullName: varchar('full_name', { length: 256 }),
   username: varchar('username', { length: 100 }).unique().notNull(),
   email: varchar('email', { length: 256 }).unique().notNull(),
-  password: text('password').notNull(), 
+  password: text('password').notNull(),
   role: userRole('role').notNull(),
-  
+
   teamId: integer('team_id').references(() => team.teamId),
-  
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()), 
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 });
 
 export const team = pgTable('team', {
   teamId: serial('team_id').primaryKey(),
   teamName: varchar('team_name', { length: 256 }).notNull(),
- 
+
   managerId: integer('manager_id').references(() => user.userId),
 });
 
@@ -32,19 +32,19 @@ export const customer = pgTable('customer', {
   customerId: serial('customer_id').primaryKey(),
   age: integer('age'),
   job: varchar('job', { length: 100 }),
-  maritalStatus: varchar('marital_status', { length: 50 }), 
+  maritalStatus: varchar('marital_status', { length: 50 }),
   education: varchar('education', { length: 100 }),
   hasCreditDefault: boolean('has_credit_default').default(false),
-  balance: decimal('balance', { precision: 12, scale: 2 }).default('0.00'), 
+  balance: decimal('balance', { precision: 12, scale: 2 }).default('0.00'),
   housingLoan: boolean('housing_loan').default(false),
   personalLoan: boolean('personal_loan').default(false),
-  
+
   assignedUserId: integer('assigned_user_id').references(() => user.userId),
-  
-  predictionScore: real('prediction_score'), 
+
+  predictionScore: real('prediction_score'),
   customerSegment: varchar('customer_segment', { length: 100 }),
   leadStatus: leadStatus('lead_status'),
-  
+
   lastEngagedAt: timestamp('last_engaged_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
@@ -52,11 +52,11 @@ export const customer = pgTable('customer', {
 
 export const interaction = pgTable('interaction', {
   interactionId: serial('interaction_id').primaryKey(),
-  
+
   // Relasi ke Customer dan User
   customerId: integer('customer_id').notNull().references(() => customer.customerId),
   userId: integer('user_id').notNull().references(() => user.userId),
-  
+
   contactMethod: contactMethod('contact_method'),
   durationSeconds: integer('duration_seconds'),
   campaignContact: integer('campaign_contact'),
@@ -74,11 +74,11 @@ export const product = pgTable('product', {
 
 export const conversion = pgTable('conversion', {
   conversionId: serial('conversion_id').primaryKey(),
-  
+
   // Relasi ke Customer dan Product
   customerId: integer('customer_id').notNull().references(() => customer.customerId),
   productId: integer('product_id').notNull().references(() => product.productId),
-  
+
   conversionDate: timestamp('conversion_date').defaultNow().notNull(),
   status: conversionStatus('status'),
 });
@@ -86,7 +86,7 @@ export const conversion = pgTable('conversion', {
 export const userRelations = relations(user, ({ many, one }) => ({
   interactions: many(interaction),
   assignedCustomers: many(customer),
-  
+
   teamMembership: one(team, {
     fields: [user.teamId],
     references: [team.teamId],
