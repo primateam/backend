@@ -7,7 +7,7 @@ import userRouter from './routes/users.js';
 import customerRouter from './routes/customers.js';
 import authRouter from './routes/auth.js';
 import teamRouter from './routes/teams.js';
-import interactionRouter from './routes/interactions.js';
+import interactionRouter from './routes/interaction.js';
 import productRouter from './routes/products.js';
 import conversionRouter from './routes/conversion.js';
 
