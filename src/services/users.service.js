@@ -1,5 +1,5 @@
-import {db} from '../db/index.js';
-import {user} from '../db/schema.js';
+import { db } from '../db/index.js';
+import { user } from '../db/schema.js';
 
 class UserService {
   async getUsers({ limit = 10 }) {
