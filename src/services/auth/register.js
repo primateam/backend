@@ -2,13 +2,13 @@ import { user } from '../../db/schema.js';
 import { db } from '../../db/index.js';
 import { eq, or } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import logger from '../../utils/logger.js';
 
 class RegisterService {
   async registerUser(userData) {
     try {
       const { fullName, username, email, password, role, teamId } = userData;
 
-      // Check if username or email already exists
       const existingUser = await db
         .select()
         .from(user)
@@ -17,9 +17,11 @@ class RegisterService {
 
       if (existingUser.length > 0) {
         if (existingUser[0].username === username) {
+          logger.warn({ username }, 'Registration blocked: username already exists');
           throw new Error('Username already exists');
         }
         if (existingUser[0].email === email) {
+          logger.warn({ email }, 'Registration blocked: email already exists');
           throw new Error('Email already exists');
         }
       }
@@ -46,8 +48,11 @@ class RegisterService {
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         });
+
+      logger.debug({ userId: newUser[0].userId, username }, 'User created in database');
       return newUser[0];
     } catch (error) {
+      logger.error({ err: error, message: error.message }, 'Failed to register user in service');
       throw new Error(`Failed to register user: ${error.message}`);
     }
   }

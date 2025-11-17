@@ -1,4 +1,5 @@
 import { userService } from '../services/users.service.js';
+import logger from '../utils/logger.js';
 
 export const usersController = {
   async getUsers(c) {
@@ -19,7 +20,7 @@ export const usersController = {
       const result = await userService.getUsers({ limit, offset });
       return c.json(result);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to get users');
       return c.json({ error: error.message }, 500);
     }
   },
@@ -37,7 +38,7 @@ export const usersController = {
       if (!found) return c.json({ error: 'User not found' }, 404);
       return c.json(found);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to get user by ID');
       return c.json({ error: 'Failed to fetch user' }, 500);
     }
   },
@@ -46,7 +47,6 @@ export const usersController = {
     try {
       const body = await c.req.json();
 
-      // Basic validation
       if (!body.username || !body.email || !body.password) {
         return c.json({ error: 'Username, email, and password are required' }, 400);
       }
@@ -54,7 +54,7 @@ export const usersController = {
       const created = await userService.createUser(body);
       return c.json(created, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to create user');
       return c.json({ error: 'Failed to create user' }, 500);
     }
   },
@@ -73,7 +73,7 @@ export const usersController = {
       if (!updated) return c.json({ error: 'User not found' }, 404);
       return c.json(updated);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to update user');
       return c.json({ error: 'Failed to update user' }, 500);
     }
   },
@@ -91,7 +91,7 @@ export const usersController = {
       if (!deleted) return c.json({ error: 'User not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to delete user');
       return c.json({ error: 'Failed to delete user' }, 500);
     }
   },
@@ -121,7 +121,7 @@ export const usersController = {
       const customers = await userService.getUserCustomers(userId, { limit, offset });
       return c.json(customers);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to fetch user customers');
       return c.json({ error: 'Failed to fetch user customers' }, 500);
     }
   },
@@ -151,7 +151,7 @@ export const usersController = {
       const interactions = await userService.getUserInteractions(userId, { limit, offset });
       return c.json(interactions);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to fetch user interactions');
       return c.json({ error: 'Failed to fetch user interactions' }, 500);
     }
   },

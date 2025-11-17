@@ -64,7 +64,6 @@ export const interactionController = {
       body.customerId = customerId;
       body.userId = userId;
 
-      // Validate duration if present
       if (body.durationSeconds !== undefined && body.durationSeconds !== null) {
         const duration = parseInt(body.durationSeconds, 10);
         if (isNaN(duration) || duration < 0) {

@@ -1,9 +1,9 @@
 import { registerService } from '../../services/auth/register.js';
+import logger from '../../utils/logger.js';
 
-// Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Password requirements: min 8 chars, at least 1 letter and 1 number
+// min 8 chars, at least 1 letter and 1 number
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
 
 export const registerController = {
@@ -11,8 +11,8 @@ export const registerController = {
     try {
       const body = await c.req.json();
 
-      // Required fields validation
       if (!body.fullName || !body.username || !body.email || !body.password) {
+        logger.warn({ fields: Object.keys(body) }, 'Registration attempt with missing required fields');
         return c.json({ error: 'Full name, username, email, and password are required' }, 400);
       }
 
@@ -24,24 +24,20 @@ export const registerController = {
         return c.json({ error: 'Username can only contain letters, numbers, and underscores' }, 400);
       }
 
-      // Email validation
       if (!EMAIL_REGEX.test(body.email)) {
         return c.json({ error: 'Invalid email format' }, 400);
       }
 
-      // Password validation
       if (!PASSWORD_REGEX.test(body.password)) {
         return c.json({
           error: 'Password must be at least 8 characters long and contain at least one letter and one number'
         }, 400);
       }
 
-      // Role validation (if provided)
       if (body.role && !['admin', 'manager', 'sales'].includes(body.role)) {
         return c.json({ error: 'Invalid role. Must be admin, manager, or sales' }, 400);
       }
 
-      // TeamId validation (if provided)
       if (body.teamId !== undefined && body.teamId !== null) {
         const teamIdNum = parseInt(body.teamId, 10);
         if (isNaN(teamIdNum) || teamIdNum < 1) {
@@ -52,11 +48,17 @@ export const registerController = {
 
       const newUser = await registerService.registerUser(body);
 
+      logger.info({
+        userId: newUser.userId,
+        username: newUser.username,
+        email: newUser.email,
+        role: newUser.role,
+      }, 'User registered successfully');
+
       return c.json(newUser, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, message: error.message }, 'Failed to register user');
 
-      // Handle specific errors
       if (error.message.includes('already exists')) {
         return c.json({ error: error.message }, 409);
       }

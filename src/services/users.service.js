@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { user, customer, interaction } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
 
 const USER_FIELDS = [
   'fullName',
@@ -11,7 +12,7 @@ const USER_FIELDS = [
   'teamId',
 ];
 
-// Public-safe user fields (excludes password)
+// excludes password
 const PUBLIC_USER_SELECT = {
   userId: user.userId,
   fullName: user.fullName,
@@ -55,7 +56,7 @@ class UserService {
         },
       };
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit, offset }, 'Failed to fetch users');
       throw new Error(`Failed to fetch users: ${error.message}`);
     }
   }
@@ -70,7 +71,7 @@ class UserService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, userId }, 'Failed to fetch user by ID');
       throw new Error('Failed to fetch the user');
     }
   }
@@ -85,7 +86,7 @@ class UserService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, username }, 'Failed to fetch user by username');
       throw new Error('Failed to fetch user by username');
     }
   }
@@ -100,7 +101,7 @@ class UserService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, email }, 'Failed to fetch user by email');
       throw new Error('Failed to fetch user by email');
     }
   }
@@ -113,9 +114,10 @@ class UserService {
         .values(sanitized)
         .returning(PUBLIC_USER_SELECT);
 
+      logger.info({ userId: created.userId, username: created.username }, 'User created');
       return created;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, payload: sanitizeUserPayload(payload) }, 'Failed to create user');
       throw new Error('Failed to create user');
     }
   }
@@ -129,9 +131,12 @@ class UserService {
         .where(eq(user.userId, userId))
         .returning(PUBLIC_USER_SELECT);
 
+      if (updated) {
+        logger.info({ userId, username: updated.username }, 'User updated');
+      }
       return updated || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, userId }, 'Failed to update user');
       throw new Error('Failed to update user');
     }
   }
@@ -139,9 +144,12 @@ class UserService {
   async deleteUser(userId) {
     try {
       const result = await db.delete(user).where(eq(user.userId, userId)).returning({ userId: user.userId });
+      if (result.length > 0) {
+        logger.info({ userId }, 'User deleted');
+      }
       return result.length > 0;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, userId }, 'Failed to delete user');
       throw new Error('Failed to delete user');
     }
   }
@@ -155,7 +163,7 @@ class UserService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user customers');
       throw new Error('Failed to fetch user customers');
     }
   }
@@ -169,7 +177,7 @@ class UserService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user interactions');
       throw new Error('Failed to fetch user interactions');
     }
   }

@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 
 const TEAM_FIELDS = ['teamName', 'managerId'];
 
-// Public user fields for team members (exclude password)
+// exclude password
 const PUBLIC_USER_SELECT = {
   userId: user.userId,
   fullName: user.fullName,
