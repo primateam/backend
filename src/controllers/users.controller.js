@@ -3,9 +3,21 @@ import { userService } from '../services/users.service.js';
 export const usersController = {
   async getUsers(c) {
     try {
-      const { limit = '10', offset = '0' } = c.req.query();
-      const users = await userService.getUsers({ limit: Number(limit), offset: Number(offset) });
-      return c.json(users);
+      const limitStr = c.req.query('limit') || '10';
+      const offsetStr = c.req.query('offset') || '0';
+
+      const limit = parseInt(limitStr, 10);
+      const offset = parseInt(offsetStr, 10);
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: 'Invalid limit. Must be between 1 and 100' }, 400);
+      }
+      if (isNaN(offset) || offset < 0) {
+        return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
+      }
+
+      const result = await userService.getUsers({ limit, offset });
+      return c.json(result);
     } catch (error) {
       console.error(error);
       return c.json({ error: error.message }, 500);
@@ -15,8 +27,12 @@ export const usersController = {
   async getUserById(c) {
     try {
       const idStr = c.req.param('user_id');
-      const userId = Number(idStr);
-      if (!userId) return c.json({ error: 'Invalid user_id' }, 400);
+      const userId = parseInt(idStr, 10);
+
+      if (isNaN(userId) || userId < 1) {
+        return c.json({ error: 'Invalid user_id' }, 400);
+      }
+
       const found = await userService.getUserById(userId);
       if (!found) return c.json({ error: 'User not found' }, 404);
       return c.json(found);
@@ -29,6 +45,12 @@ export const usersController = {
   async createUser(c) {
     try {
       const body = await c.req.json();
+
+      // Basic validation
+      if (!body.username || !body.email || !body.password) {
+        return c.json({ error: 'Username, email, and password are required' }, 400);
+      }
+
       const created = await userService.createUser(body);
       return c.json(created, 201);
     } catch (error) {
@@ -40,8 +62,12 @@ export const usersController = {
   async updateUser(c) {
     try {
       const idStr = c.req.param('user_id');
-      const userId = Number(idStr);
-      if (!userId) return c.json({ error: 'Invalid user_id' }, 400);
+      const userId = parseInt(idStr, 10);
+
+      if (isNaN(userId) || userId < 1) {
+        return c.json({ error: 'Invalid user_id' }, 400);
+      }
+
       const body = await c.req.json();
       const updated = await userService.updateUser(userId, body);
       if (!updated) return c.json({ error: 'User not found' }, 404);
@@ -55,11 +81,14 @@ export const usersController = {
   async deleteUser(c) {
     try {
       const idStr = c.req.param('user_id');
-      const userId = Number(idStr);
-      if (!userId) return c.json({ error: 'Invalid user_id' }, 400);
-      const found = await userService.getUserById(userId);
-      if (!found) return c.json({ error: 'User not found' }, 404);
-      await userService.deleteUser(userId);
+      const userId = parseInt(idStr, 10);
+
+      if (isNaN(userId) || userId < 1) {
+        return c.json({ error: 'Invalid user_id' }, 400);
+      }
+
+      const deleted = await userService.deleteUser(userId);
+      if (!deleted) return c.json({ error: 'User not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -70,10 +99,26 @@ export const usersController = {
   async getUserCustomers(c) {
     try {
       const idStr = c.req.param('user_id');
-      const userId = Number(idStr);
-      if (!userId) return c.json({ error: 'Invalid user_id' }, 400);
-      const { limit = '10', offset = '0' } = c.req.query();
-      const customers = await userService.getUserCustomers(userId, { limit: Number(limit), offset: Number(offset) });
+      const userId = parseInt(idStr, 10);
+
+      if (isNaN(userId) || userId < 1) {
+        return c.json({ error: 'Invalid user_id' }, 400);
+      }
+
+      const limitStr = c.req.query('limit') || '10';
+      const offsetStr = c.req.query('offset') || '0';
+
+      const limit = parseInt(limitStr, 10);
+      const offset = parseInt(offsetStr, 10);
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: 'Invalid limit. Must be between 1 and 100' }, 400);
+      }
+      if (isNaN(offset) || offset < 0) {
+        return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
+      }
+
+      const customers = await userService.getUserCustomers(userId, { limit, offset });
       return c.json(customers);
     } catch (error) {
       console.error(error);
@@ -84,10 +129,26 @@ export const usersController = {
   async getUserInteractions(c) {
     try {
       const idStr = c.req.param('user_id');
-      const userId = Number(idStr);
-      if (!userId) return c.json({ error: 'Invalid user_id' }, 400);
-      const { limit = '10', offset = '0' } = c.req.query();
-      const interactions = await userService.getUserInteractions(userId, { limit: Number(limit), offset: Number(offset) });
+      const userId = parseInt(idStr, 10);
+
+      if (isNaN(userId) || userId < 1) {
+        return c.json({ error: 'Invalid user_id' }, 400);
+      }
+
+      const limitStr = c.req.query('limit') || '10';
+      const offsetStr = c.req.query('offset') || '0';
+
+      const limit = parseInt(limitStr, 10);
+      const offset = parseInt(offsetStr, 10);
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: 'Invalid limit. Must be between 1 and 100' }, 400);
+      }
+      if (isNaN(offset) || offset < 0) {
+        return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
+      }
+
+      const interactions = await userService.getUserInteractions(userId, { limit, offset });
       return c.json(interactions);
     } catch (error) {
       console.error(error);

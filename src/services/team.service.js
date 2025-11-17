@@ -1,8 +1,20 @@
 import { db } from '../db/index.js';
 import { team, user, customer } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const TEAM_FIELDS = ['teamName', 'managerId'];
+
+// Public user fields for team members (exclude password)
+const PUBLIC_USER_SELECT = {
+  userId: user.userId,
+  fullName: user.fullName,
+  username: user.username,
+  email: user.email,
+  role: user.role,
+  teamId: user.teamId,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+};
 
 const sanitizeTeamPayload = (payload) => {
   const sanitized = {};
@@ -17,7 +29,24 @@ const sanitizeTeamPayload = (payload) => {
 class TeamService {
   async getTeams({ limit = 10, offset = 0 } = {}) {
     try {
-      return await db.select().from(team).limit(limit).offset(offset);
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(team);
+
+      const teams = await db
+        .select()
+        .from(team)
+        .limit(limit)
+        .offset(offset);
+
+      return {
+        data: teams,
+        pagination: {
+          total: count,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw new Error('Failed to fetch teams');
@@ -78,8 +107,11 @@ class TeamService {
 
   async deleteTeam(teamId) {
     try {
-      await db.delete(team).where(eq(team.teamId, teamId));
-      return true;
+      const result = await db
+        .delete(team)
+        .where(eq(team.teamId, teamId))
+        .returning({ teamId: team.teamId });
+      return result.length > 0;
     } catch (error) {
       console.error(error);
       throw new Error('Failed to delete team');
@@ -89,7 +121,7 @@ class TeamService {
   async getTeamMembers(teamId, { limit = 10, offset = 0 } = {}) {
     try {
       return await db
-        .select()
+        .select(PUBLIC_USER_SELECT)
         .from(user)
         .where(eq(user.teamId, teamId))
         .limit(limit)

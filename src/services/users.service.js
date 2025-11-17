@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { user, customer, interaction } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const USER_FIELDS = [
   'fullName',
@@ -10,6 +10,18 @@ const USER_FIELDS = [
   'role',
   'teamId',
 ];
+
+// Public-safe user fields (excludes password)
+const PUBLIC_USER_SELECT = {
+  userId: user.userId,
+  fullName: user.fullName,
+  username: user.username,
+  email: user.email,
+  role: user.role,
+  teamId: user.teamId,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+};
 
 const sanitizeUserPayload = (payload) => {
   const sanitized = {};
@@ -24,7 +36,24 @@ const sanitizeUserPayload = (payload) => {
 class UserService {
   async getUsers({ limit = 10, offset = 0 } = {}) {
     try {
-      return await db.select().from(user).limit(limit).offset(offset);
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(user);
+
+      const users = await db
+        .select(PUBLIC_USER_SELECT)
+        .from(user)
+        .limit(limit)
+        .offset(offset);
+
+      return {
+        data: users,
+        pagination: {
+          total: count,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw new Error(`Failed to fetch users: ${error.message}`);
@@ -34,7 +63,7 @@ class UserService {
   async getUserById(userId) {
     try {
       const [record] = await db
-        .select()
+        .select(PUBLIC_USER_SELECT)
         .from(user)
         .where(eq(user.userId, userId))
         .limit(1);
@@ -82,16 +111,7 @@ class UserService {
       const [created] = await db
         .insert(user)
         .values(sanitized)
-        .returning({
-          userId: user.userId,
-          fullName: user.fullName,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          teamId: user.teamId,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        });
+        .returning(PUBLIC_USER_SELECT);
 
       return created;
     } catch (error) {
@@ -107,16 +127,7 @@ class UserService {
         .update(user)
         .set(sanitized)
         .where(eq(user.userId, userId))
-        .returning({
-          userId: user.userId,
-          fullName: user.fullName,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          teamId: user.teamId,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        });
+        .returning(PUBLIC_USER_SELECT);
 
       return updated || null;
     } catch (error) {
@@ -127,8 +138,8 @@ class UserService {
 
   async deleteUser(userId) {
     try {
-      await db.delete(user).where(eq(user.userId, userId));
-      return true;
+      const result = await db.delete(user).where(eq(user.userId, userId)).returning({ userId: user.userId });
+      return result.length > 0;
     } catch (error) {
       console.error(error);
       throw new Error('Failed to delete user');

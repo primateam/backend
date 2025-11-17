@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { product, conversion } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const PRODUCT_FIELDS = ['productName', 'description'];
 
@@ -17,11 +17,24 @@ const sanitizeProductPayload = (payload) => {
 class ProductService {
   async getProducts({ limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(product);
+
+      const products = await db
         .select()
         .from(product)
         .limit(limit)
         .offset(offset);
+
+      return {
+        data: products,
+        pagination: {
+          total: count,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw new Error('Failed to fetch products');
@@ -82,10 +95,11 @@ class ProductService {
 
   async deleteProduct(productId) {
     try {
-      await db
+      const result = await db
         .delete(product)
-        .where(eq(product.productId, productId));
-      return true;
+        .where(eq(product.productId, productId))
+        .returning({ productId: product.productId });
+      return result.length > 0;
     } catch (error) {
       console.error(error);
       throw new Error('Failed to delete product');

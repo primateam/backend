@@ -3,8 +3,20 @@ import { teamService } from '../services/team.service.js';
 export const teamController = {
   async getTeams(c) {
     try {
-      const { limit = '10', offset = '0' } = c.req.query();
-      const teams = await teamService.getTeams({ limit: Number(limit), offset: Number(offset) });
+      const limitStr = c.req.query('limit') || '10';
+      const offsetStr = c.req.query('offset') || '0';
+
+      const limit = parseInt(limitStr, 10);
+      const offset = parseInt(offsetStr, 10);
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: 'Invalid limit. Must be between 1 and 100' }, 400);
+      }
+      if (isNaN(offset) || offset < 0) {
+        return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
+      }
+
+      const teams = await teamService.getTeams({ limit, offset });
       return c.json(teams);
     } catch (error) {
       console.error(error);
@@ -15,8 +27,12 @@ export const teamController = {
   async getTeamById(c) {
     try {
       const idStr = c.req.param('team_id');
-      const teamId = Number(idStr);
-      if (!teamId) return c.json({ error: 'Invalid team_id' }, 400);
+      const teamId = parseInt(idStr, 10);
+
+      if (isNaN(teamId) || teamId < 1) {
+        return c.json({ error: 'Invalid team_id' }, 400);
+      }
+
       const found = await teamService.getTeamById(teamId);
       if (!found) return c.json({ error: 'Team not found' }, 404);
       return c.json(found);
@@ -29,6 +45,19 @@ export const teamController = {
   async createTeam(c) {
     try {
       const body = await c.req.json();
+
+      if (!body.teamName) {
+        return c.json({ error: 'Team name is required' }, 400);
+      }
+
+      if (body.managerId !== undefined && body.managerId !== null) {
+        const managerId = parseInt(body.managerId, 10);
+        if (isNaN(managerId) || managerId < 1) {
+          return c.json({ error: 'Invalid managerId' }, 400);
+        }
+        body.managerId = managerId;
+      }
+
       const created = await teamService.createTeam(body);
       return c.json(created, 201);
     } catch (error) {
@@ -40,9 +69,22 @@ export const teamController = {
   async updateTeam(c) {
     try {
       const idStr = c.req.param('team_id');
-      const teamId = Number(idStr);
-      if (!teamId) return c.json({ error: 'Invalid team_id' }, 400);
+      const teamId = parseInt(idStr, 10);
+
+      if (isNaN(teamId) || teamId < 1) {
+        return c.json({ error: 'Invalid team_id' }, 400);
+      }
+
       const body = await c.req.json();
+
+      if (body.managerId !== undefined && body.managerId !== null) {
+        const managerId = parseInt(body.managerId, 10);
+        if (isNaN(managerId) || managerId < 1) {
+          return c.json({ error: 'Invalid managerId' }, 400);
+        }
+        body.managerId = managerId;
+      }
+
       const updated = await teamService.updateTeam(teamId, body);
       if (!updated) return c.json({ error: 'Team not found' }, 404);
       return c.json(updated);
@@ -55,11 +97,14 @@ export const teamController = {
   async deleteTeam(c) {
     try {
       const idStr = c.req.param('team_id');
-      const teamId = Number(idStr);
-      if (!teamId) return c.json({ error: 'Invalid team_id' }, 400);
-      const found = await teamService.getTeamById(teamId);
-      if (!found) return c.json({ error: 'Team not found' }, 404);
-      await teamService.deleteTeam(teamId);
+      const teamId = parseInt(idStr, 10);
+
+      if (isNaN(teamId) || teamId < 1) {
+        return c.json({ error: 'Invalid team_id' }, 400);
+      }
+
+      const deleted = await teamService.deleteTeam(teamId);
+      if (!deleted) return c.json({ error: 'Team not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -70,10 +115,26 @@ export const teamController = {
   async getTeamMembers(c) {
     try {
       const idStr = c.req.param('team_id');
-      const teamId = Number(idStr);
-      if (!teamId) return c.json({ error: 'Invalid team_id' }, 400);
-      const { limit = '10', offset = '0' } = c.req.query();
-      const members = await teamService.getTeamMembers(teamId, { limit: Number(limit), offset: Number(offset) });
+      const teamId = parseInt(idStr, 10);
+
+      if (isNaN(teamId) || teamId < 1) {
+        return c.json({ error: 'Invalid team_id' }, 400);
+      }
+
+      const limitStr = c.req.query('limit') || '10';
+      const offsetStr = c.req.query('offset') || '0';
+
+      const limit = parseInt(limitStr, 10);
+      const offset = parseInt(offsetStr, 10);
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: 'Invalid limit. Must be between 1 and 100' }, 400);
+      }
+      if (isNaN(offset) || offset < 0) {
+        return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
+      }
+
+      const members = await teamService.getTeamMembers(teamId, { limit, offset });
       return c.json(members);
     } catch (error) {
       console.error(error);
@@ -84,10 +145,26 @@ export const teamController = {
   async getTeamCustomers(c) {
     try {
       const idStr = c.req.param('team_id');
-      const teamId = Number(idStr);
-      if (!teamId) return c.json({ error: 'Invalid team_id' }, 400);
-      const { limit = '10', offset = '0' } = c.req.query();
-      const customers = await teamService.getTeamCustomers(teamId, { limit: Number(limit), offset: Number(offset) });
+      const teamId = parseInt(idStr, 10);
+
+      if (isNaN(teamId) || teamId < 1) {
+        return c.json({ error: 'Invalid team_id' }, 400);
+      }
+
+      const limitStr = c.req.query('limit') || '10';
+      const offsetStr = c.req.query('offset') || '0';
+
+      const limit = parseInt(limitStr, 10);
+      const offset = parseInt(offsetStr, 10);
+
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return c.json({ error: 'Invalid limit. Must be between 1 and 100' }, 400);
+      }
+      if (isNaN(offset) || offset < 0) {
+        return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
+      }
+
+      const customers = await teamService.getTeamCustomers(teamId, { limit, offset });
       return c.json(customers);
     } catch (error) {
       console.error(error);

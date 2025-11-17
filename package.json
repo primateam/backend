@@ -16,7 +16,8 @@
     "drizzle-orm": "^0.44.7",
     "hono": "^4.10.3",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",

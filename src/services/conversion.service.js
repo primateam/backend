@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { conversion } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const CONVERSION_FIELDS = [
   'customerId',
@@ -22,11 +22,24 @@ const sanitizeConversionPayload = (payload) => {
 class ConversionService {
   async getConversions({ limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(conversion);
+
+      const conversions = await db
         .select()
         .from(conversion)
         .limit(limit)
         .offset(offset);
+
+      return {
+        data: conversions,
+        pagination: {
+          total: count,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw new Error('Failed to fetch conversions');
@@ -87,10 +100,11 @@ class ConversionService {
 
   async deleteConversion(conversionId) {
     try {
-      await db
+      const result = await db
         .delete(conversion)
-        .where(eq(conversion.conversionId, conversionId));
-      return true;
+        .where(eq(conversion.conversionId, conversionId))
+        .returning({ conversionId: conversion.conversionId });
+      return result.length > 0;
     } catch (error) {
       console.error(error);
       throw new Error('Failed to delete conversion');

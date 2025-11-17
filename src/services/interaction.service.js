@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { interaction } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const INTERACTION_FIELDS = [
   'customerId',
@@ -27,11 +27,24 @@ const sanitizeInteractionPayload = (payload) => {
 class InteractionService {
   async getInteractions({ limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(interaction);
+
+      const interactions = await db
         .select()
         .from(interaction)
         .limit(limit)
         .offset(offset);
+
+      return {
+        data: interactions,
+        pagination: {
+          total: count,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw new Error('Failed to fetch interactions');
@@ -92,10 +105,11 @@ class InteractionService {
 
   async deleteInteraction(interactionId) {
     try {
-      await db
+      const result = await db
         .delete(interaction)
-        .where(eq(interaction.interactionId, interactionId));
-      return true;
+        .where(eq(interaction.interactionId, interactionId))
+        .returning({ interactionId: interaction.interactionId });
+      return result.length > 0;
     } catch (error) {
       console.error(error);
       throw new Error('Failed to delete interaction');

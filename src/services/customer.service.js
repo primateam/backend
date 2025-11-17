@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { customer, interaction } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 const CUSTOMER_FIELDS = [
   'age',
@@ -31,7 +31,24 @@ const sanitizeCustomerPayload = (payload) => {
 class CustomerService {
   async getCustomers({ limit = 10, offset = 0 } = {}) {
     try {
-      return await db.select().from(customer).limit(limit).offset(offset);
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(customer);
+
+      const customers = await db
+        .select()
+        .from(customer)
+        .limit(limit)
+        .offset(offset);
+
+      return {
+        data: customers,
+        pagination: {
+          total: count,
+          limit,
+          offset,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw new Error('Failed to fetch customers');
@@ -89,8 +106,11 @@ class CustomerService {
 
   async deleteCustomer(customerId) {
     try {
-      await db.delete(customer).where(eq(customer.customerId, customerId));
-      return true;
+      const result = await db
+        .delete(customer)
+        .where(eq(customer.customerId, customerId))
+        .returning({ customerId: customer.customerId });
+      return result.length > 0;
     } catch (error) {
       console.error(error);
       throw new Error('Failed to delete customer');
