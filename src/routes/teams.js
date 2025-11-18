@@ -1,14 +1,14 @@
 import { Hono } from 'hono';
+import { teamController } from '../controllers/team.controller.js';
 
 const teamsRouter = new Hono();
 
-const dummyHandler = (c) => {
-  return c.text('This is a placeholder for teams routes.');
-};
-
-teamsRouter.get('/', dummyHandler);
-teamsRouter.post('/', dummyHandler);
-teamsRouter.get('/:team_id/users', dummyHandler);
-teamsRouter.get('/:team_id/customers', dummyHandler);
+teamsRouter.get('/', teamController.getTeams);
+teamsRouter.post('/', teamController.createTeam);
+teamsRouter.get('/:team_id/', teamController.getTeamById);
+teamsRouter.patch('/:team_id/', teamController.updateTeam);
+teamsRouter.delete('/:team_id/', teamController.deleteTeam);
+teamsRouter.get('/:team_id/users', teamController.getTeamMembers);
+teamsRouter.get('/:team_id/customers', teamController.getTeamCustomers);
 
 export default teamsRouter;

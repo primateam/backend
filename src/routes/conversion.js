@@ -1,14 +1,12 @@
 import { Hono } from 'hono';
+import { conversionController } from '../controllers/conversion.controller.js';
 
 const conversionRouter = new Hono();
 
-const dummyHandler = (c) => {
-  return c.text('This is a placeholder for conversion routes.');
-};
-
-conversionRouter.get('/', dummyHandler);
-conversionRouter.post('/', dummyHandler);
-conversionRouter.get('/:conversion_id/', dummyHandler);
-conversionRouter.patch('/:conversion_id/', dummyHandler);
+conversionRouter.get('/', conversionController.getConversions);
+conversionRouter.post('/', conversionController.createConversion);
+conversionRouter.get('/:conversion_id/', conversionController.getConversionById);
+conversionRouter.patch('/:conversion_id/', conversionController.updateConversion);
+conversionRouter.delete('/:conversion_id/', conversionController.deleteConversion);
 
 export default conversionRouter;

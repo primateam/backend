@@ -1,4 +1,4 @@
-import { db } from '../db/index.js';
+import { db } from '../../db/index.js';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';

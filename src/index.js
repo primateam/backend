@@ -1,13 +1,13 @@
 import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import { logger } from 'hono/logger';
 
+import logger from './utils/logger.js';
 import userRouter from './routes/users.js';
 import customerRouter from './routes/customers.js';
 import authRouter from './routes/auth.js';
 import teamRouter from './routes/teams.js';
-import interactionRouter from './routes/interactions.js';
+import interactionRouter from './routes/interaction.js';
 import productRouter from './routes/products.js';
 import conversionRouter from './routes/conversion.js';
 
@@ -15,7 +15,23 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 const app = new Hono();
 
-app.use('*', logger());
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  const { method, path } = c.req;
+
+  await next();
+
+  const duration = Date.now() - start;
+  const status = c.res.status;
+
+  logger.info({
+    method,
+    path,
+    status,
+    duration,
+    ip: c.req.header('x-forwarded-for') || 'unknown',
+  }, `${method} ${path} ${status} - ${duration}ms`);
+});
 
 const v1 = new Hono();
 
@@ -39,6 +55,10 @@ serve(
     port: PORT,
   },
   (info) => {
-    console.log(`Server running on ${info.address}:${info.port}`);
+    logger.info({
+      port: info.port,
+      address: info.address,
+      env: process.env.NODE_ENV || 'development',
+    }, `Server running on ${info.address}:${info.port}`);
   },
 );

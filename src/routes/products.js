@@ -1,15 +1,13 @@
 import { Hono } from 'hono';
+import { productController } from '../controllers/product.controller.js';
 
 const productsRouter = new Hono();
 
-const dummyHandler = (c) => {
-  return c.text('This is a placeholder for products routes.');
-};
-
-productsRouter.get('/', dummyHandler);
-productsRouter.post('/', dummyHandler);
-productsRouter.get('/:product_id/', dummyHandler);
-productsRouter.patch('/:product_id/', dummyHandler);
-productsRouter.delete('/:product_id/', dummyHandler);
+productsRouter.get('/', productController.getProducts);
+productsRouter.post('/', productController.createProduct);
+productsRouter.get('/:product_id/', productController.getProductById);
+productsRouter.patch('/:product_id/', productController.updateProduct);
+productsRouter.delete('/:product_id/', productController.deleteProduct);
+productsRouter.get('/:product_id/conversions', productController.getProductConversions);
 
 export default productsRouter;
