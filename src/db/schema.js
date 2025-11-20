@@ -142,3 +142,17 @@ export const conversionRelations = relations(conversion, ({ one }) => ({
     references: [product.productId]
   }),
 }));
+
+//revoking refresh token
+
+export const auth = pgTable('authentication', {
+  token: text('token').notNull().primaryKey(),
+  userId: integer('user_id').notNull().references(() => user.userId, { onDelete: 'cascade' }),
+});
+
+export const authRelation = relations(auth, ({ one }) => ({
+  user: one(user, {
+    fields: [auth.userId],
+    references: [user.userId]
+  }),
+}));
