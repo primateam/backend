@@ -4,7 +4,7 @@ import logger from '../../utils/logger.js';
 export const loginController = {
   async login(c) {
     try {
-      const body = await c.reg.json();
+      const body = await c.req.json();
       const { username, password } = body;
 
       if (!username || !password) {
@@ -16,7 +16,7 @@ export const loginController = {
       return c.json(loginResult, 200);
 
     } catch (error) {
-      logger.error({ err: error, username: c.reg.json().username }, 'Gagal melakukan login');
+      logger.error({ err: error, username: c.req.json().username }, 'Gagal melakukan login');
 
       if (error.message === 'Pengguna tidak ditemukan' || error.message === 'Password tidak valid') {
         return c.json({ error: 'Username atau password salah' }, 401);

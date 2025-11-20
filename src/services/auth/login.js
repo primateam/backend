@@ -29,7 +29,7 @@ class LoginService {
       throw new Error('Password tidak valid');
     }
 
-    const expiresIn = process.env.JWT._EXPIRES_IN || '1h';
+    const expiresIn = process.env.JWT_EXPIRES_IN || '1h';
     const refreshExpiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
     const accessToken = jwt.sign(

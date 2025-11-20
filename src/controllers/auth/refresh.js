@@ -4,8 +4,8 @@ import logger from '../../utils/logger.js';
 export const refreshController = {
   async refresh(c) {
     try {
-      const body = await c.reg.json();
-      const { refreshToken } = body.refresh_token;
+      const body = await c.req.json();
+      const refreshToken = body.refresh_token;
 
       if (!refreshToken) {
         return c.json({ error: 'Refresh token dibutuhkan' }, 400);
