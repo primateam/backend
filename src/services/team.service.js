@@ -1,6 +1,9 @@
 import { db } from '../db/index.js';
 import { team, user, customer } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
+import { NotFoundError, DatabaseError } from '../errors/index.js';
+import { buildPaginatedResponse } from '../utils/response.js';
 
 const TEAM_FIELDS = ['teamName', 'managerId'];
 
@@ -39,17 +42,10 @@ class TeamService {
         .limit(limit)
         .offset(offset);
 
-      return {
-        data: teams,
-        pagination: {
-          total: count,
-          limit,
-          offset,
-        },
-      };
+      return buildPaginatedResponse(teams, count, limit, offset);
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch teams');
+      logger.error({ err: error, limit, offset }, 'Failed to fetch teams');
+      throw new DatabaseError('Failed to fetch teams', error);
     }
   }
 
@@ -61,10 +57,17 @@ class TeamService {
         .where(eq(team.teamId, teamId))
         .limit(1);
 
-      return record || null;
+      if (!record) {
+        throw new NotFoundError('Team', teamId);
+      }
+
+      return record;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch the team');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      logger.error({ err: error, teamId }, 'Failed to fetch team');
+      throw new DatabaseError('Failed to fetch team', error);
     }
   }
 
@@ -74,15 +77,13 @@ class TeamService {
       const [created] = await db
         .insert(team)
         .values(sanitized)
-        .returning({
-          teamId: team.teamId,
-          ...team,
-        });
+        .returning();
 
+      logger.info({ teamId: created.teamId, teamName: created.teamName }, 'Team created');
       return created;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to create team');
+      logger.error({ err: error }, 'Failed to create team');
+      throw new DatabaseError('Failed to create team', error);
     }
   }
 
@@ -93,15 +94,20 @@ class TeamService {
         .update(team)
         .set(sanitized)
         .where(eq(team.teamId, teamId))
-        .returning({
-          teamId: team.teamId,
-          ...team,
-        });
+        .returning();
 
-      return updated || null;
+      if (!updated) {
+        throw new NotFoundError('Team', teamId);
+      }
+
+      logger.info({ teamId }, 'Team updated');
+      return updated;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to update team');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      logger.error({ err: error, teamId }, 'Failed to update team');
+      throw new DatabaseError('Failed to update team', error);
     }
   }
 
@@ -111,39 +117,63 @@ class TeamService {
         .delete(team)
         .where(eq(team.teamId, teamId))
         .returning({ teamId: team.teamId });
-      return result.length > 0;
+
+      if (result.length === 0) {
+        throw new NotFoundError('Team', teamId);
+      }
+
+      logger.info({ teamId }, 'Team deleted');
+      return true;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to delete team');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      logger.error({ err: error, teamId }, 'Failed to delete team');
+      throw new DatabaseError('Failed to delete team', error);
     }
   }
 
   async getTeamMembers(teamId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(user)
+        .where(eq(user.teamId, teamId));
+
+      const members = await db
         .select(PUBLIC_USER_SELECT)
         .from(user)
         .where(eq(user.teamId, teamId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(members, count, limit, offset);
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch team members');
+      logger.error({ err: error, teamId }, 'Failed to fetch team members');
+      throw new DatabaseError('Failed to fetch team members', error);
     }
   }
 
   async getTeamCustomers(teamId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(customer)
+        .innerJoin(user, eq(customer.assignedUserId, user.userId))
+        .where(eq(user.teamId, teamId));
+
+      const customers = await db
         .select()
         .from(customer)
         .innerJoin(user, eq(customer.assignedUserId, user.userId))
         .where(eq(user.teamId, teamId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(customers, count, limit, offset);
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch customers belong to team');
+      logger.error({ err: error, teamId }, 'Failed to fetch team customers');
+      throw new DatabaseError('Failed to fetch team customers', error);
     }
   }
 }

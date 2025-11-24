@@ -1,6 +1,9 @@
 import { db } from '../db/index.js';
 import { customer, interaction } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
+import { NotFoundError, DatabaseError } from '../errors/index.js';
+import { buildPaginatedResponse } from '../utils/response.js';
 
 const CUSTOMER_FIELDS = [
   'age',
@@ -41,17 +44,10 @@ class CustomerService {
         .limit(limit)
         .offset(offset);
 
-      return {
-        data: customers,
-        pagination: {
-          total: count,
-          limit,
-          offset,
-        },
-      };
+      return buildPaginatedResponse(customers, count, limit, offset);
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch customers');
+      logger.error({ err: error, limit, offset }, 'Failed to fetch customers');
+      throw new DatabaseError('Failed to fetch customers', error);
     }
   }
 
@@ -62,10 +58,18 @@ class CustomerService {
         .from(customer)
         .where(eq(customer.customerId, customerId))
         .limit(1);
-      return record || null;
+
+      if (!record) {
+        throw new NotFoundError('Customer', customerId);
+      }
+
+      return record;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch the customer');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      logger.error({ err: error, customerId }, 'Failed to fetch customer');
+      throw new DatabaseError('Failed to fetch customer', error);
     }
   }
 
@@ -75,14 +79,13 @@ class CustomerService {
       const [created] = await db
         .insert(customer)
         .values(sanitized)
-        .returning({
-          customerId: customer.customerId,
-          ...customer,
-        });
+        .returning();
+
+      logger.info({ customerId: created.customerId }, 'Customer created');
       return created;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to create customer');
+      logger.error({ err: error }, 'Failed to create customer');
+      throw new DatabaseError('Failed to create customer', error);
     }
   }
 
@@ -93,14 +96,20 @@ class CustomerService {
         .update(customer)
         .set(sanitized)
         .where(eq(customer.customerId, customerId))
-        .returning({
-          customerId: customer.customerId,
-          ...customer,
-        });
-      return updated || null;
+        .returning();
+
+      if (!updated) {
+        throw new NotFoundError('Customer', customerId);
+      }
+
+      logger.info({ customerId }, 'Customer updated');
+      return updated;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to update customer');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      logger.error({ err: error, customerId }, 'Failed to update customer');
+      throw new DatabaseError('Failed to update customer', error);
     }
   }
 
@@ -110,22 +119,40 @@ class CustomerService {
         .delete(customer)
         .where(eq(customer.customerId, customerId))
         .returning({ customerId: customer.customerId });
-      return result.length > 0;
+
+      if (result.length === 0) {
+        throw new NotFoundError('Customer', customerId);
+      }
+
+      logger.info({ customerId }, 'Customer deleted');
+      return true;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to delete customer');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      logger.error({ err: error, customerId }, 'Failed to delete customer');
+      throw new DatabaseError('Failed to delete customer', error);
     }
   }
 
-  async getCustomerInteractions(customerId) {
+  async getCustomerInteractions(customerId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
-        .select()
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
         .from(interaction)
         .where(eq(interaction.customerId, customerId));
+
+      const interactions = await db
+        .select()
+        .from(interaction)
+        .where(eq(interaction.customerId, customerId))
+        .limit(limit)
+        .offset(offset);
+
+      return buildPaginatedResponse(interactions, count, limit, offset);
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch customer interactions');
+      logger.error({ err: error, customerId }, 'Failed to fetch customer interactions');
+      throw new DatabaseError('Failed to fetch customer interactions', error);
     }
   }
 }
