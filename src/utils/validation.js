@@ -39,7 +39,7 @@ export const createCustomerSchema = z.object({
   predictionScore: z.coerce.number().optional().nullable(),
   customerSegment: z.string().trim().max(100).optional().nullable(),
   leadStatus: z.enum(['new', 'contacted', 'qualified', 'unqualified', 'converted', 'lost']).optional().nullable(),
-  lastEngagedAt: z.string().datetime().optional().nullable(),
+  lastEngagedAt: z.iso.datetime().optional().nullable(),
 });
 
 export const updateCustomerSchema = createCustomerSchema.partial();
