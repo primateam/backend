@@ -6,6 +6,6 @@ import daStyle from 'eslint-config-dicodingacademy';
 export default defineConfig([
   daStyle,
   {
-    files: ['**/*.{js,mjs,cjs}'], plugins: { js }, extends: ['js/recommended'], languageOptions: { globals: globals.node }, rules: { 'camelcase': ['error', { 'properties': 'never' }] }
+    files: ['**/*.{js,mjs,cjs}'], plugins: { js }, extends: ['js/recommended'], languageOptions: { globals: globals.node }, rules: { 'camelcase': ['error', { 'properties': 'never' }], 'linebreak-style': 'off' }
   },
 ]);
