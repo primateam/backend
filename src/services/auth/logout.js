@@ -3,7 +3,7 @@ import { auth } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import logger from '../../utils/logger.js';
 
-class Logoutservice {
+class LogoutService {
   async logout(refreshToken) {
     try {
       const deleteCount = await db
@@ -23,4 +23,4 @@ class Logoutservice {
   }
 }
 
-export const logoutService = new Logoutservice();
+export const logoutService = new LogoutService();

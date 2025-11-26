@@ -1,4 +1,6 @@
 import { customerService } from '../services/customer.service.js';
+import { idParamsSchema } from '../validators/crud.validator.js';
+import logger from '../utils/logger.js';
 
 export const customerController = {
   async getCustomers(c) {
@@ -25,19 +27,22 @@ export const customerController = {
   },
 
   async getCustomerById(c) {
-    try {
-      const idStr = c.req.param('customer_id');
-      const customerId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(customerId) || customerId < 1) {
-        return c.json({ error: 'Invalid customer_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('customer_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const customerId = validateParams.id;
 
       const found = await customerService.getCustomerById(customerId);
       if (!found) return c.json({ error: 'Customer not found' }, 404);
       return c.json(found);
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Customer ID format is invalid ' }, 400);
+      }
+      logger.error({ err: error, customerId: idStr }, 'Controller error: Failed to fetch customer');
       return c.json({ error: 'Failed to fetch customer' }, 500);
     }
   },
@@ -68,13 +73,13 @@ export const customerController = {
   },
 
   async updateCustomer(c) {
-    try {
-      const idStr = c.req.param('customer_id');
-      const customerId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(customerId) || customerId < 1) {
-        return c.json({ error: 'Invalid customer_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('customer_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const customerId = validateParams.id;
 
       const body = await c.req.json();
 
@@ -95,43 +100,52 @@ export const customerController = {
       if (!updated) return c.json({ error: 'Customer not found' }, 404);
       return c.json(updated);
     } catch (error) {
-      console.error(error);
-      return c.json({ error: 'Failed to update customer' }, 500);
+      if (error.issues) {
+        return c.json({ error: 'Customer ID format is invalid ' }, 400);
+      }
+      logger.error({ err: error, customerId: idStr }, 'Controller error: Failed to fetch customer');
+      return c.json({ error: 'Failed to fetch customer' }, 500);
     }
   },
 
   async deleteCustomer(c) {
-    try {
-      const idStr = c.req.param('customer_id');
-      const customerId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(customerId) || customerId < 1) {
-        return c.json({ error: 'Invalid customer_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('customer_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const customerId = validateParams.id;
 
       const deleted = await customerService.deleteCustomer(customerId);
       if (!deleted) return c.json({ error: 'Customer not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
-      console.error(error);
-      return c.json({ error: 'Failed to delete customer' }, 500);
+      if (error.issues) {
+        return c.json({ error: 'Customer ID format is invalid ' }, 400);
+      }
+      logger.error({ err: error, customerId: idStr }, 'Controller error: Failed to fetch customer');
+      return c.json({ error: 'Failed to fetch customer' }, 500);
     }
   },
 
   async getCustomerInteractions(c) {
-    try {
-      const idStr = c.req.param('customer_id');
-      const customerId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(customerId) || customerId < 1) {
-        return c.json({ error: 'Invalid customer_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('customer_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const customerId = validateParams.id;
 
       const interactions = await customerService.getCustomerInteractions(customerId);
       return c.json(interactions);
     } catch (error) {
-      console.error(error);
-      return c.json({ error: 'Failed to fetch customer interactions' }, 500);
+      if (error.issues) {
+        return c.json({ error: 'Customer ID format is invalid ' }, 400);
+      }
+      logger.error({ err: error, customerId: idStr }, 'Controller error: Failed to fetch customer');
+      return c.json({ error: 'Failed to fetch customer' }, 500);
     }
   },
 };

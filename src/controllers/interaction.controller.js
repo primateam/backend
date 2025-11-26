@@ -1,4 +1,5 @@
 import { interactionService } from '../services/interaction.service.js';
+import { idParamsSchema } from '../validators/crud.validator.js';
 
 export const interactionController = {
   async getInteractions(c) {
@@ -25,13 +26,12 @@ export const interactionController = {
   },
 
   async getInteractionById(c) {
-    try {
-      const idStr = c.req.param('interactions_id');
-      const interactionId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(interactionId) || interactionId < 1) {
-        return c.json({ error: 'Invalid interactions_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('interactions_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const interactionId = validateParams.id;
 
       const found = await interactionService.getInteractionById(interactionId);
       if (!found) return c.json({ error: 'Interaction not found' }, 404);

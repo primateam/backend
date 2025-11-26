@@ -1,4 +1,6 @@
+import { idParamsSchema, queryParamsSchema } from '../validators/common.validator.js';
 import { teamService } from '../services/team.service.js';
+import logger from '../utils/logger.js';
 
 export const teamController = {
   async getTeams(c) {
@@ -25,19 +27,22 @@ export const teamController = {
   },
 
   async getTeamById(c) {
-    try {
-      const idStr = c.req.param('team_id');
-      const teamId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(teamId) || teamId < 1) {
-        return c.json({ error: 'Invalid team_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('team_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const teamId = validateParams.id;
 
       const found = await teamService.getTeamById(teamId);
       if (!found) return c.json({ error: 'Team not found' }, 404);
       return c.json(found);
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Invalid team_id' }, 400);
+      }
+      logger.error({ err: error, teamId: idStr }, 'Failed to fetch team from service');
       return c.json({ error: 'Failed to fetch team' }, 500);
     }
   },
@@ -113,13 +118,16 @@ export const teamController = {
   },
 
   async getTeamMembers(c) {
-    try {
-      const idStr = c.req.param('team_id');
-      const teamId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(teamId) || teamId < 1) {
-        return c.json({ error: 'Invalid team_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('team_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const teamId = validateParams.id;
+
+      const queryParams = c.req.query();
+      const { q, filter, sort } = queryParamsSchema.parse(queryParams);
 
       const limitStr = c.req.query('limit') || '10';
       const offsetStr = c.req.query('offset') || '0';
@@ -134,22 +142,28 @@ export const teamController = {
         return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
       }
 
-      const members = await teamService.getTeamMembers(teamId, { limit, offset });
+      const members = await teamService.getTeamMembers(teamId, { limit, offset, q, filter, sort });
       return c.json(members);
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Invalid parameters' }, 400);
+      }
+      logger.error({ err: error, teamId: idStr }, 'Failed to fetch team members');
       return c.json({ error: 'Failed to fetch team members' }, 500);
     }
   },
 
   async getTeamCustomers(c) {
-    try {
-      const idStr = c.req.param('team_id');
-      const teamId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(teamId) || teamId < 1) {
-        return c.json({ error: 'Invalid team_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('team_id');
+
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const teamId = validateParams.id;
+
+      const queryParams = c.req.query();
+      const { q, filter, sort } = queryParamsSchema.parse(queryParams);
 
       const limitStr = c.req.query('limit') || '10';
       const offsetStr = c.req.query('offset') || '0';
@@ -164,10 +178,13 @@ export const teamController = {
         return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
       }
 
-      const customers = await teamService.getTeamCustomers(teamId, { limit, offset });
+      const customers = await teamService.getTeamCustomers(teamId, { limit, offset, q, filter, sort });
       return c.json(customers);
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Invalid parameters' }, 400);
+      }
+      logger.error({ err: error, teamId: idStr }, 'Failed to fetch team customers');
       return c.json({ error: 'Failed to fetch team customers' }, 500);
     }
   },

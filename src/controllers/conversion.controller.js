@@ -1,4 +1,6 @@
 import { conversionService } from '../services/conversion.service.js';
+import { idParamsSchema } from '../validators/crud.validator.js';
+import logger from '../utils/logger.js';
 
 export const conversionController = {
   async getConversions(c) {
@@ -25,19 +27,21 @@ export const conversionController = {
   },
 
   async getConversionById(c) {
-    try {
-      const idStr = c.req.param('conversion_id');
-      const conversionId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(conversionId) || conversionId < 1) {
-        return c.json({ error: 'Invalid conversion_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('conversion_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const conversionId = validateParams.id;
 
       const found = await conversionService.getConversionById(conversionId);
       if (!found) return c.json({ error: 'Conversion not found' }, 404);
       return c.json(found);
     } catch (error) {
-      console.error(error);
+      if (error.issue){
+        return c.json({ error: 'Conversion id is invalid' }, 400);
+      }
+      logger.error({ err: error, conversionId: idStr }, 'Controller error: Failed to fetch conversion');
       return c.json({ error: 'Failed to fetch conversion' }, 500);
     }
   },
@@ -73,13 +77,12 @@ export const conversionController = {
   },
 
   async updateConversion(c) {
-    try {
-      const idStr = c.req.param('conversion_id');
-      const conversionId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(conversionId) || conversionId < 1) {
-        return c.json({ error: 'Invalid conversion_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('conversion_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const conversionId = validateParams.id;
 
       const body = await c.req.json();
 
@@ -104,25 +107,30 @@ export const conversionController = {
       if (!updated) return c.json({ error: 'Conversion not found' }, 404);
       return c.json(updated);
     } catch (error) {
-      console.error(error);
+      if (error.issue){
+        return c.json({ error: 'Conversion id format is invalid' }, 400);
+      }
+      logger.error({ err: error, conversionId: idStr }, 'Controller error: Failed to fetch conversion');
       return c.json({ error: 'Failed to update conversion' }, 500);
     }
   },
 
   async deleteConversion(c) {
-    try {
-      const idStr = c.req.param('conversion_id');
-      const conversionId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(conversionId) || conversionId < 1) {
-        return c.json({ error: 'Invalid conversion_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('conversion_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const conversionId = validateParams.id;
 
       const deleted = await conversionService.deleteConversion(conversionId);
       if (!deleted) return c.json({ error: 'Conversion not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
-      console.error(error);
+      if (error.issues){
+        return c.json({ error: 'Conversion id format id invalid' }, 400);
+      }
+      logger.error({ err: error, conversionId: idStr }, 'Controller errro: Failed to fetch conversion');
       return c.json({ error: 'Failed to delete conversion' }, 500);
     }
   },

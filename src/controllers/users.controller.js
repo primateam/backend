@@ -1,9 +1,12 @@
+import { idParamsSchema, searchQuerySchema } from '../validators/common.validator.js';
 import { userService } from '../services/users.service.js';
 import logger from '../utils/logger.js';
 
 export const usersController = {
   async getUsers(c) {
     try {
+      const queryParams = c.req.query();
+
       const limitStr = c.req.query('limit') || '10';
       const offsetStr = c.req.query('offset') || '0';
 
@@ -17,9 +20,13 @@ export const usersController = {
         return c.json({ error: 'Invalid offset. Must be 0 or greater' }, 400);
       }
 
-      const result = await userService.getUsers({ limit, offset });
+      const validateQuery = searchQuerySchema.parse(queryParams);
+      const result = await userService.getUsers({ limit, offset, ...validateQuery });
       return c.json(result);
     } catch (error) {
+      if (error.issues) {
+        return c.json({ error: 'Invalid query parameters' }, 400);
+      }
       logger.error({ err: error }, 'Controller error: failed to get users');
       return c.json({ error: error.message }, 500);
     }
@@ -27,17 +34,18 @@ export const usersController = {
 
   async getUserById(c) {
     try {
-      const idStr = c.req.param('user_id');
-      const userId = parseInt(idStr, 10);
+      const { user_id: idStr } = c.req.param();
 
-      if (isNaN(userId) || userId < 1) {
-        return c.json({ error: 'Invalid user_id' }, 400);
-      }
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const userId = validateParams.id;
 
       const found = await userService.getUserById(userId);
       if (!found) return c.json({ error: 'User not found' }, 404);
       return c.json(found);
     } catch (error) {
+      if (error.issues) {
+        return c.json({ error: 'Invalid user_id' }, 400);
+      }
       logger.error({ err: error }, 'Controller error: failed to get user by ID');
       return c.json({ error: 'Failed to fetch user' }, 500);
     }

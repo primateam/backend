@@ -1,4 +1,6 @@
 import { productService } from '../services/product.service.js';
+import { idParamsSchema } from '../validators/crud.validator.js';
+import logger from '../utils/logger.js';
 
 export const productController = {
   async getProducts(c) {
@@ -25,19 +27,21 @@ export const productController = {
   },
 
   async getProductById(c) {
+    let idStr;
+
     try {
       const idStr = c.req.param('product_id');
-      const productId = parseInt(idStr, 10);
-
-      if (isNaN(productId) || productId < 1) {
-        return c.json({ error: 'Invalid product_id' }, 400);
-      }
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const productId = validateParams.id;
 
       const found = await productService.getProductById(productId);
       if (!found) return c.json({ error: 'Product not found' }, 404);
       return c.json(found);
     } catch (error) {
-      console.error(error);
+      if (error.issue){
+        return c.json({ error: 'Product id format is invalid' }, 400);
+      }
+      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to fetch product');
       return c.json({ error: 'Failed to fetch product' }, 500);
     }
   },
@@ -59,50 +63,53 @@ export const productController = {
   },
 
   async updateProduct(c) {
-    try {
-      const idStr = c.req.param('product_id');
-      const productId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(productId) || productId < 1) {
-        return c.json({ error: 'Invalid product_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('product_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const productId = validateParams.id;
 
       const body = await c.req.json();
       const updated = await productService.updateProduct(productId, body);
       if (!updated) return c.json({ error: 'Product not found' }, 404);
       return c.json(updated);
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Product id format is invalid' });
+      }
+      logger.error({ err: error, customerId: idStr }, 'Controller error: Failed to fetch product');
       return c.json({ error: 'Failed to update product' }, 500);
     }
   },
 
   async deleteProduct(c) {
-    try {
-      const idStr = c.req.param('product_id');
-      const productId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(productId) || productId < 1) {
-        return c.json({ error: 'Invalid product_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('product_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const productId = validateParams.id;
 
       const deleted = await productService.deleteProduct(productId);
       if (!deleted) return c.json({ error: 'Product not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
-      console.error(error);
+      if (error.issues){
+        return c.json({ error: 'Product id format is invalid' }, 400);
+      }
+      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to fetch product');
       return c.json({ error: 'Failed to delete product' }, 500);
     }
   },
 
   async getProductConversions(c) {
-    try {
-      const idStr = c.req.param('product_id');
-      const productId = parseInt(idStr, 10);
+    let idStr;
 
-      if (isNaN(productId) || productId < 1) {
-        return c.json({ error: 'Invalid product_id' }, 400);
-      }
+    try {
+      idStr = c.req.param('product_id');
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const productId = validateParams.id;
 
       const limitStr = c.req.query('limit') || '10';
       const offsetStr = c.req.query('offset') || '0';
@@ -120,7 +127,10 @@ export const productController = {
       const conversions = await productService.getProductConversions(productId, { limit, offset });
       return c.json(conversions);
     } catch (error) {
-      console.error(error);
+      if (error.issue) {
+        return c.json({ error: 'Product id format is invalid' }, 400);
+      }
+      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to fetch product');
       return c.json({ error: 'Failed to fetch product conversions' }, 500);
     }
   },
