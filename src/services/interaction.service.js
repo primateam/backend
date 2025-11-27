@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { interaction } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
 
 const INTERACTION_FIELDS = [
   'customerId',
@@ -46,7 +47,7 @@ class InteractionService {
         },
       };
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit, offset }, 'Failed to fetch interactions');
       throw new Error('Failed to fetch interactions');
     }
   }
@@ -61,7 +62,7 @@ class InteractionService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, interactionId }, 'Failed to fetch the interaction');
       throw new Error('Failed to fetch the interaction');
     }
   }
@@ -77,9 +78,11 @@ class InteractionService {
           ...interaction,
         });
 
+      logger.info({ interactionId: created.interactionId, customerId: created.customerId, userId: created.userId }, 'Interaction created successfully');
+
       return created;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, payload: sanitizeInteractionPayload(payload) }, 'Failed to create interaction');
       throw new Error('Failed to create interaction');
     }
   }
@@ -96,9 +99,13 @@ class InteractionService {
           ...interaction,
         });
 
+      if (updated) {
+        logger.info({ interactionId }, 'Interaction updated successfully');
+      }
+
       return updated || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, interactionId }, 'Failed to update interaction');
       throw new Error('Failed to update interaction');
     }
   }
@@ -109,9 +116,14 @@ class InteractionService {
         .delete(interaction)
         .where(eq(interaction.interactionId, interactionId))
         .returning({ interactionId: interaction.interactionId });
+
+      if (result.length > 0) {
+        logger.info({ interactionId }, 'Interaction deleted successfully');
+      }
+
       return result.length > 0;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, interactionId }, 'Failed to delete interaction');
       throw new Error('Failed to delete interaction');
     }
   }
@@ -125,7 +137,7 @@ class InteractionService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, customerId, limit, offset }, 'Failed to fetch customer interactions');
       throw new Error('Failed to fetch customer interactions');
     }
   }
@@ -139,7 +151,7 @@ class InteractionService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user interactions');
       throw new Error('Failed to fetch user interactions');
     }
   }

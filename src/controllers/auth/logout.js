@@ -1,5 +1,5 @@
 import { tokenSchema } from '../../validators/auth.validator.js';
-import { LogoutService } from '../../services/auth/logOut.js';
+import { logoutService } from '../../services/auth/logOut.js';
 import logger from '../../utils/logger.js';
 
 export const logoutController = {
@@ -13,7 +13,7 @@ export const logoutController = {
       const parseResult = tokenSchema.parse(body);
       const { refresh_token: refreshToken } = parseResult;
 
-      await LogoutService.logout(refreshToken);
+      await logoutService.logout(refreshToken);
 
       return c.text(null, 204);
 

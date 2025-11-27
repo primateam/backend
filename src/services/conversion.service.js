@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { conversion } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
 
 const CONVERSION_FIELDS = [
   'customerId',
@@ -41,7 +42,7 @@ class ConversionService {
         },
       };
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit, offset }, 'Failed to fetch conversions');
       throw new Error('Failed to fetch conversions');
     }
   }
@@ -56,7 +57,7 @@ class ConversionService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, conversionId }, 'Failed to fetch the conversion');
       throw new Error('Failed to fetch the conversion');
     }
   }
@@ -74,7 +75,7 @@ class ConversionService {
 
       return created;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, payload: sanitizeConversionPayload(payload) }, 'Failed to create conversion');
       throw new Error('Failed to create conversion');
     }
   }
@@ -91,9 +92,13 @@ class ConversionService {
           ...conversion,
         });
 
+      if (updated) {
+        logger.info({ conversionId }, 'Conversion updated successfully');
+      }
+
       return updated || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, conversionId }, 'Failed to update conversion');
       throw new Error('Failed to update conversion');
     }
   }
@@ -104,9 +109,14 @@ class ConversionService {
         .delete(conversion)
         .where(eq(conversion.conversionId, conversionId))
         .returning({ conversionId: conversion.conversionId });
+
+      if (result.length > 0) {
+        logger.info({ conversionId }, 'Conversion deleted successfully');
+      }
+
       return result.length > 0;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, conversionId }, 'Failed to delete conversion');
       throw new Error('Failed to delete conversion');
     }
   }
@@ -120,7 +130,7 @@ class ConversionService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, customerId, limit, offset }, 'Failed to fetch customer conversions');
       throw new Error('Failed to fetch customer conversions');
     }
   }
@@ -134,7 +144,7 @@ class ConversionService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, productId, limit, offset }, 'Failed to fetch product conversions');
       throw new Error('Failed to fetch product conversions');
     }
   }

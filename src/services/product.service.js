@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { product, conversion } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
 
 const PRODUCT_FIELDS = ['productName', 'description'];
 
@@ -36,7 +37,7 @@ class ProductService {
         },
       };
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit, offset }, 'Failed to fetch products');
       throw new Error('Failed to fetch products');
     }
   }
@@ -51,7 +52,7 @@ class ProductService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, productId }, 'Failed to fetch the product');
       throw new Error('Failed to fetch the product');
     }
   }
@@ -69,7 +70,7 @@ class ProductService {
 
       return created;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, payload: sanitizeProductPayload(payload) }, 'Failed to create product');
       throw new Error('Failed to create product');
     }
   }
@@ -86,9 +87,13 @@ class ProductService {
           ...product,
         });
 
+      if (updated) {
+        logger.info({ productId }, 'Product updated successfully');
+      }
+
       return updated || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, productId, updates: sanitizeProductPayload(updates) }, 'Failed to update product');
       throw new Error('Failed to update product');
     }
   }
@@ -99,9 +104,14 @@ class ProductService {
         .delete(product)
         .where(eq(product.productId, productId))
         .returning({ productId: product.productId });
+
+      if (result.length > 0) {
+        logger.info({ productId }, 'Product deleted successfully');
+      }
+
       return result.length > 0;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, productId }, 'Failed to delete product');
       throw new Error('Failed to delete product');
     }
   }
@@ -115,7 +125,7 @@ class ProductService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, productId, limit, offset }, 'Failed to fetch product conversions');
       throw new Error('Failed to fetch product conversions');
     }
   }

@@ -21,7 +21,7 @@ export const teamController = {
       const teams = await teamService.getTeams({ limit, offset });
       return c.json(teams);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit: c.req.query('limit'), offset: c.req.query('offset') }, 'Controller error: Failed to fetch teams');
       return c.json({ error: 'Failed to fetch teams' }, 500);
     }
   },
@@ -48,8 +48,10 @@ export const teamController = {
   },
 
   async createTeam(c) {
+    let body;
+
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
 
       if (!body.teamName) {
         return c.json({ error: 'Team name is required' }, 400);
@@ -66,14 +68,16 @@ export const teamController = {
       const created = await teamService.createTeam(body);
       return c.json(created, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, body }, 'Controller error: Failed to create team');
       return c.json({ error: 'Failed to create team' }, 500);
     }
   },
 
   async updateTeam(c) {
+    let idStr;
+
     try {
-      const idStr = c.req.param('team_id');
+      idStr = c.req.param('team_id');
       const teamId = parseInt(idStr, 10);
 
       if (isNaN(teamId) || teamId < 1) {
@@ -94,14 +98,19 @@ export const teamController = {
       if (!updated) return c.json({ error: 'Team not found' }, 404);
       return c.json(updated);
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Invalid team_id format' }, 400);
+      }
+      logger.error({ err: error, teamId: idStr, body: c.req.body }, 'Controller error: Failed to update team');
       return c.json({ error: 'Failed to update team' }, 500);
     }
   },
 
   async deleteTeam(c) {
+    let idStr;
+
     try {
-      const idStr = c.req.param('team_id');
+      idStr = c.req.param('team_id');
       const teamId = parseInt(idStr, 10);
 
       if (isNaN(teamId) || teamId < 1) {
@@ -112,7 +121,10 @@ export const teamController = {
       if (!deleted) return c.json({ error: 'Team not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
-      console.error(error);
+      if (error.issues) {
+        return c.json({ error: 'Invalid team_id format' }, 400);
+      }
+      logger.error({ err: error, teamId: idStr }, 'Controller error: Failed to delete team');
       return c.json({ error: 'Failed to delete team' }, 500);
     }
   },

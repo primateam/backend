@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import logger from '../../utils/logger.js';
 
 if (!process.env.JWT_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
+  logger.fatal('JWT key not define at environment variables.');
   throw new Error('kunci JWT tidak didefinisikan di environment variables');
 }
 

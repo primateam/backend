@@ -1,5 +1,7 @@
 import { interactionService } from '../services/interaction.service.js';
 import { idParamsSchema } from '../validators/crud.validator.js';
+import logger from '../utils/logger.js';
+
 
 export const interactionController = {
   async getInteractions(c) {
@@ -20,7 +22,7 @@ export const interactionController = {
       const interactions = await interactionService.getInteractions({ limit, offset });
       return c.json(interactions);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit: c.req.query('limit'), offset: c.req.query('offset') }, 'Controller error: Failed to fetch interactions');
       return c.json({ error: 'Failed to fetch interactions' }, 500);
     }
   },
@@ -37,14 +39,19 @@ export const interactionController = {
       if (!found) return c.json({ error: 'Interaction not found' }, 404);
       return c.json(found);
     } catch (error) {
-      console.error(error);
+      if (error.issues){
+        return c.json({ error: 'Invalid interaction ID format' }, 400);
+      }
+
+      logger.error({ err: error, interactionId: idStr }, 'Controller error: Failed to fetch interaction by ID');
       return c.json({ error: 'Failed to fetch interaction' }, 500);
     }
   },
 
   async createInteraction(c) {
+    let body;
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
 
       // Validate required fields
       if (!body.customerId || !body.userId) {
@@ -75,14 +82,15 @@ export const interactionController = {
       const created = await interactionService.createInteraction(body);
       return c.json(created, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, body }, 'Controller error: Failed to create interaction');
       return c.json({ error: 'Failed to create interaction' }, 500);
     }
   },
 
   async updateInteraction(c) {
+    let idStr;
     try {
-      const idStr = c.req.param('interactions_id');
+      idStr = c.req.param('interactions_id');
       const interactionId = parseInt(idStr, 10);
 
       if (isNaN(interactionId) || interactionId < 1) {
@@ -120,14 +128,19 @@ export const interactionController = {
       if (!updated) return c.json({ error: 'Interaction not found' }, 404);
       return c.json(updated);
     } catch (error) {
-      console.error(error);
+      if (error.issues){
+        return c.json({ error: 'Invalid interaction ID format' }, 400);
+      }
+
+      logger.error({ err: error, interactionId: idStr }, 'Controller error: Failed to update interaction');
       return c.json({ error: 'Failed to update interaction' }, 500);
     }
   },
 
   async deleteInteraction(c) {
+    let idStr;
     try {
-      const idStr = c.req.param('interactions_id');
+      idStr = c.req.param('interactions_id');
       const interactionId = parseInt(idStr, 10);
 
       if (isNaN(interactionId) || interactionId < 1) {
@@ -138,7 +151,11 @@ export const interactionController = {
       if (!deleted) return c.json({ error: 'Interaction not found' }, 404);
       return c.json({ success: true });
     } catch (error) {
-      console.error(error);
+      if (error.issues){
+        return c.json({ error: 'Invalid interaction ID format' }, 400);
+      }
+
+      logger.error({ err: error, interactionId: idStr }, 'Controller error: Failed to delete interaction');
       return c.json({ error: 'Failed to delete interaction' }, 500);
     }
   },

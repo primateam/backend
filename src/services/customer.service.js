@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { customer, interaction } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
 
 const CUSTOMER_FIELDS = [
   'age',
@@ -50,7 +51,7 @@ class CustomerService {
         },
       };
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit, offset }, 'Failed to fetch customer list');
       throw new Error('Failed to fetch customers');
     }
   }
@@ -64,7 +65,7 @@ class CustomerService {
         .limit(1);
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, customerId }, 'Failed to fetch customer by ID');
       throw new Error('Failed to fetch the customer');
     }
   }
@@ -81,7 +82,7 @@ class CustomerService {
         });
       return created;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, payload }, 'Failed to create new customer record');
       throw new Error('Failed to create customer');
     }
   }
@@ -99,7 +100,7 @@ class CustomerService {
         });
       return updated || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, customerId, updates }, 'Failed to update customer record');
       throw new Error('Failed to update customer');
     }
   }
@@ -112,7 +113,7 @@ class CustomerService {
         .returning({ customerId: customer.customerId });
       return result.length > 0;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, customerId }, 'Failed to delete customer record');
       throw new Error('Failed to delete customer');
     }
   }
@@ -124,7 +125,7 @@ class CustomerService {
         .from(interaction)
         .where(eq(interaction.customerId, customerId));
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, customerId }, 'Failed to fetch customer interactions');
       throw new Error('Failed to fetch customer interactions');
     }
   }

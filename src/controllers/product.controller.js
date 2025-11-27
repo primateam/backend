@@ -21,7 +21,7 @@ export const productController = {
       const products = await productService.getProducts({ limit, offset });
       return c.json(products);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit: c.req.query('limit'), offset: c.req.query('offset') }, 'Controller error: Failed to fetch products');
       return c.json({ error: 'Failed to fetch products' }, 500);
     }
   },
@@ -41,14 +41,17 @@ export const productController = {
       if (error.issue){
         return c.json({ error: 'Product id format is invalid' }, 400);
       }
-      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to fetch product');
+
+      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to fetch product by ID');
       return c.json({ error: 'Failed to fetch product' }, 500);
     }
   },
 
   async createProduct(c) {
+    let body;
+
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
 
       if (!body.productName) {
         return c.json({ error: 'Product name is required' }, 400);
@@ -57,7 +60,7 @@ export const productController = {
       const created = await productService.createProduct(body);
       return c.json(created, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, body }, 'Controller error: Failed to create product');
       return c.json({ error: 'Failed to create product' }, 500);
     }
   },
@@ -78,7 +81,8 @@ export const productController = {
       if (error.issues) {
         return c.json({ error: 'Product id format is invalid' });
       }
-      logger.error({ err: error, customerId: idStr }, 'Controller error: Failed to fetch product');
+
+      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to update product');
       return c.json({ error: 'Failed to update product' }, 500);
     }
   },
@@ -98,7 +102,7 @@ export const productController = {
       if (error.issues){
         return c.json({ error: 'Product id format is invalid' }, 400);
       }
-      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to fetch product');
+      logger.error({ err: error, productId: idStr }, 'Controller error: Failed to delete product');
       return c.json({ error: 'Failed to delete product' }, 500);
     }
   },

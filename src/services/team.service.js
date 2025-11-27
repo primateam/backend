@@ -1,6 +1,7 @@
 import { db } from '../db/index.js';
 import { team, user, customer } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import logger from '../utils/logger.js';
 
 const TEAM_FIELDS = ['teamName', 'managerId'];
 
@@ -48,7 +49,7 @@ class TeamService {
         },
       };
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit, offset }, 'Failed to fetch teams');
       throw new Error('Failed to fetch teams');
     }
   }
@@ -63,7 +64,7 @@ class TeamService {
 
       return record || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, teamId }, 'Failed to fetch the team by ID');
       throw new Error('Failed to fetch the team');
     }
   }
@@ -79,9 +80,10 @@ class TeamService {
           ...team,
         });
 
+      logger.info({ teamId: created.teamId, teamName: created.teamName }, 'Team created successfully');
       return created;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, payload: sanitizeTeamPayload(payload) }, 'Failed to create team');
       throw new Error('Failed to create team');
     }
   }
@@ -98,9 +100,13 @@ class TeamService {
           ...team,
         });
 
+      if (updated) {
+        logger.info({ teamId }, 'Team updated successfully');
+      }
+
       return updated || null;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, teamId, updates: sanitizeTeamPayload(updates) }, 'Failed to update team');
       throw new Error('Failed to update team');
     }
   }
@@ -113,7 +119,7 @@ class TeamService {
         .returning({ teamId: team.teamId });
       return result.length > 0;
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, teamId }, 'Failed to delete team');
       throw new Error('Failed to delete team');
     }
   }
@@ -127,7 +133,7 @@ class TeamService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, teamId, limit, offset }, 'Failed to fetch team members');
       throw new Error('Failed to fetch team members');
     }
   }
@@ -142,7 +148,7 @@ class TeamService {
         .limit(limit)
         .offset(offset);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, teamId, limit, offset }, 'Failed to fetch customers belong to team');
       throw new Error('Failed to fetch customers belong to team');
     }
   }
