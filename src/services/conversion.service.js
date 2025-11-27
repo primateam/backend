@@ -2,6 +2,8 @@ import { db } from '../db/index.js';
 import { conversion } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import logger from '../utils/logger.js';
+import { NotFoundError, DatabaseError } from '../errors/index.js';
+import { buildPaginatedResponse } from '../utils/response.js';
 
 const CONVERSION_FIELDS = [
   'customerId',
@@ -33,17 +35,10 @@ class ConversionService {
         .limit(limit)
         .offset(offset);
 
-      return {
-        data: conversions,
-        pagination: {
-          total: count,
-          limit,
-          offset,
-        },
-      };
+      return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
       logger.error({ err: error, limit, offset }, 'Failed to fetch conversions');
-      throw new Error('Failed to fetch conversions');
+      throw new DatabaseError('Failed to fetch conversions', error);
     }
   }
 
@@ -55,10 +50,17 @@ class ConversionService {
         .where(eq(conversion.conversionId, conversionId))
         .limit(1);
 
-      return record || null;
+      if (!record) {
+        throw new NotFoundError('Conversion', conversionId);
+      }
+
+      return record;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, conversionId }, 'Failed to fetch the conversion');
-      throw new Error('Failed to fetch the conversion');
+      throw new DatabaseError('Failed to fetch the conversion', error);
     }
   }
 
@@ -68,17 +70,14 @@ class ConversionService {
       const [created] = await db
         .insert(conversion)
         .values(sanitized)
-        .returning({
-          conversionId: conversion.conversionId,
-          ...conversion,
-        });
+        .returning();
 
       logger.info({ conversionId: created.conversionId, customerId: created.customerId, productId: created.productId }, 'Conversion created successfully');
 
       return created;
     } catch (error) {
       logger.error({ err: error, payload: sanitizeConversionPayload(payload) }, 'Failed to create conversion');
-      throw new Error('Failed to create conversion');
+      throw new DatabaseError('Failed to create conversion', error);
     }
   }
 
@@ -89,19 +88,20 @@ class ConversionService {
         .update(conversion)
         .set(sanitized)
         .where(eq(conversion.conversionId, conversionId))
-        .returning({
-          conversionId: conversion.conversionId,
-          ...conversion,
-        });
+        .returning();
 
-      if (updated) {
-        logger.info({ conversionId }, 'Conversion updated successfully');
+      if (!updated) {
+        throw new NotFoundError('Conversion', conversionId);
       }
 
+      logger.info({ conversionId }, 'Conversion updated successfully');
       return updated || null;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, conversionId }, 'Failed to update conversion');
-      throw new Error('Failed to update conversion');
+      throw new DatabaseError('Failed to update conversion', error);
     }
   }
 
@@ -112,42 +112,60 @@ class ConversionService {
         .where(eq(conversion.conversionId, conversionId))
         .returning({ conversionId: conversion.conversionId });
 
-      if (result.length > 0) {
-        logger.info({ conversionId }, 'Conversion deleted successfully');
+      if (result.length === 0) {
+        throw new NotFoundError('Conversion', conversionId);
       }
 
-      return result.length > 0;
+      logger.info({ conversionId }, 'Conversion deleted successfully');
+      return true;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, conversionId }, 'Failed to delete conversion');
-      throw new Error('Failed to delete conversion');
+      throw new DatabaseError('Failed to delete conversion', error);
     }
   }
 
   async getConversionsByCustomer(customerId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(conversion)
+        .where(eq(conversion.customerId, customerId));
+
+      const conversions = await db
         .select()
         .from(conversion)
         .where(eq(conversion.customerId, customerId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
       logger.error({ err: error, customerId, limit, offset }, 'Failed to fetch customer conversions');
-      throw new Error('Failed to fetch customer conversions');
+      throw new DatabaseError('Failed to fetch customer conversions', error);
     }
   }
 
   async getConversionsByProduct(productId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(conversion)
+        .where(eq(conversion.productId, productId));
+
+      const conversions = await db
         .select()
         .from(conversion)
         .where(eq(conversion.productId, productId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
       logger.error({ err: error, productId, limit, offset }, 'Failed to fetch product conversions');
-      throw new Error('Failed to fetch product conversions');
+      throw new DatabaseError('Failed to fetch product conversions', error);
     }
   }
 }

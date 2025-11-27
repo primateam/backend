@@ -2,6 +2,8 @@ import { db } from '../db/index.js';
 import { product, conversion } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import logger from '../utils/logger.js';
+import { NotFoundError, DatabaseError } from '../errors/index.js';
+import { buildPaginatedResponse } from '../utils/response.js';
 
 const PRODUCT_FIELDS = ['productName', 'description'];
 
@@ -28,17 +30,10 @@ class ProductService {
         .limit(limit)
         .offset(offset);
 
-      return {
-        data: products,
-        pagination: {
-          total: count,
-          limit,
-          offset,
-        },
-      };
+      return buildPaginatedResponse(products, count, limit, offset);
     } catch (error) {
       logger.error({ err: error, limit, offset }, 'Failed to fetch products');
-      throw new Error('Failed to fetch products');
+      throw new DatabaseError('Failed to fetch products', error);
     }
   }
 
@@ -50,10 +45,17 @@ class ProductService {
         .where(eq(product.productId, productId))
         .limit(1);
 
-      return record || null;
+      if (!record) {
+        throw new NotFoundError('Product', productId);
+      }
+
+      return record;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, productId }, 'Failed to fetch the product');
-      throw new Error('Failed to fetch the product');
+      throw new DatabaseError('Failed to fetch the product', error);
     }
   }
 
@@ -63,17 +65,14 @@ class ProductService {
       const [created] = await db
         .insert(product)
         .values(sanitized)
-        .returning({
-          productId: product.productId,
-          ...product,
-        });
+        .returning();
 
       logger.info({ productId: created.productId, productName: created.productName }, 'Product created successfully');
 
       return created;
     } catch (error) {
       logger.error({ err: error, payload: sanitizeProductPayload(payload) }, 'Failed to create product');
-      throw new Error('Failed to create product');
+      throw new DatabaseError('Failed to create product', error);
     }
   }
 
@@ -84,19 +83,21 @@ class ProductService {
         .update(product)
         .set(sanitized)
         .where(eq(product.productId, productId))
-        .returning({
-          productId: product.productId,
-          ...product,
-        });
+        .returning();
 
-      if (updated) {
-        logger.info({ productId }, 'Product updated successfully');
+      if (!updated) {
+        throw new NotFoundError('Product', productId);
       }
 
-      return updated || null;
+      logger.info({ productId }, 'Product updated successfully');
+
+      return updated;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, productId, updates: sanitizeProductPayload(updates) }, 'Failed to update product');
-      throw new Error('Failed to update product');
+      throw new DatabaseError('Failed to update product', error);
     }
   }
 
@@ -107,28 +108,40 @@ class ProductService {
         .where(eq(product.productId, productId))
         .returning({ productId: product.productId });
 
-      if (result.length > 0) {
-        logger.info({ productId }, 'Product deleted successfully');
+      if (result.length === 0) {
+        throw new NotFoundError('Product', productId);
       }
 
-      return result.length > 0;
+      logger.info({ productId }, 'Product deleted successfully');
+
+      return true;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, productId }, 'Failed to delete product');
-      throw new Error('Failed to delete product');
+      throw new DatabaseError('Failed to delete product', error);
     }
   }
 
   async getProductConversions(productId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(conversion)
+        .where(eq(conversion.productId, productId));
+
+      const conversions = await db
         .select()
         .from(conversion)
         .where(eq(conversion.productId, productId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
       logger.error({ err: error, productId, limit, offset }, 'Failed to fetch product conversions');
-      throw new Error('Failed to fetch product conversions');
+      throw new DatabaseError('Failed to fetch product conversions', error);
     }
   }
 }
