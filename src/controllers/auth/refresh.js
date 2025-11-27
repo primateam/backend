@@ -5,18 +5,18 @@ import { z } from 'zod';
 
 export const refreshController = {
   async refresh(c) {
-    let body;
     let refreshToken;
 
     try {
       refreshToken = c.req.cookie('refresh_token');
 
       if (!refreshToken) {
-        body = await c.req.json().catch(() => ({}));
+        const body = await c.req.json().catch(() => ({}));
 
-
-        const validatedBody = tokenSchema.parse(body);
-        refreshToken = validatedBody.refresh_token;
+        const validatedBody = tokenSchema.safeParse(body);
+        if (validatedBody.success && validatedBody.data.refresh_token) {
+          refreshToken = validatedBody.data.refresh_token;
+        }
       }
 
       if (!refreshToken) {
