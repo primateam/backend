@@ -1,5 +1,5 @@
 import { tokenSchema } from '../../utils/auth.js';
-import { logoutService } from '../../services/auth/logOut.js';
+import { logoutService } from '../../services/auth/logout.js';
 import logger from '../../utils/logger.js';
 import { z } from 'zod';
 
