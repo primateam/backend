@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 
 import logger from './utils/logger.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import userRouter from './routes/users.js';
 import customerRouter from './routes/customers.js';
 import authRouter from './routes/auth.js';
@@ -48,6 +49,8 @@ app.route('/v1', v1);
 app.get('/', (c) => {
   return c.text('Hello! Server Hono ini sedang berjalan.');
 });
+
+app.onError(errorHandler);
 
 serve(
   {
