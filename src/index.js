@@ -4,6 +4,8 @@ import { Hono } from 'hono';
 
 import logger from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { authMiddleware } from './middleware/authMiddleware.js';
+
 import userRouter from './routes/users.js';
 import customerRouter from './routes/customers.js';
 import authRouter from './routes/auth.js';
@@ -37,6 +39,14 @@ app.use('*', async (c, next) => {
 const v1 = new Hono();
 
 v1.route('/auth', authRouter);
+
+v1.use('/users/*', authMiddleware());
+v1.use('/teams/*', authMiddleware());
+v1.use('/customers/*', authMiddleware());
+v1.use('/interactions/*', authMiddleware());
+v1.use('/products/*', authMiddleware());
+v1.use('/conversions/*', authMiddleware());
+
 v1.route('/users', userRouter);
 v1.route('/teams', teamRouter);
 v1.route('/customers', customerRouter);

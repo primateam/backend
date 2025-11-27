@@ -51,6 +51,40 @@ export const createTeamSchema = z.object({
 
 export const updateTeamSchema = createTeamSchema.partial();
 
+export const createProductSchema = z.object({
+  productName: z.string().trim().min(1).max(256),
+  description: z.string().optional().nullable(),
+});
+
+export const updateProductSchema = createProductSchema.partial();
+
+export const createConversionSchema = z.object({
+  customerId: z.coerce.number().int().positive(),
+  productId: z.coerce.number().int().positive(),
+  conversionDate: z.iso.datetime().optional().nullable(),
+  status: z.enum(['pending', 'completed', 'cancelled']).optional().nullable(),
+});
+
+export const updateConversionSchema = createConversionSchema.partial();
+
+export const createInteractionSchema = z.object({
+  customerId: z.coerce.number().int().positive(),
+  userId: z.coerce.number().int().positive(),
+
+  contactMethod: z.enum(['email', 'phone', 'meeting', 'sms', 'other']).optional().nullable(),
+  outcome: z.enum(['successful', 'unsuccessful', 'no_answer', 'follow_up_required']).optional().nullable(),
+
+  durationSeconds: z.coerce.number().int().min(0).optional().nullable(),
+  campaignContact: z.coerce.number().int().min(1).optional().nullable(),
+
+  previousOutcome: z.string().trim().max(256).optional().nullable(),
+  notes: z.string().optional().nullable(),
+
+  interactionDate: z.iso.datetime().optional().nullable(),
+});
+
+export const updateInteractionSchema = createInteractionSchema.partial();
+
 /**
  * Validate data against a Zod schema
  * @param {z.ZodSchema} schema - Zod schema

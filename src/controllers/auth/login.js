@@ -1,10 +1,10 @@
-import { loginSchema } from '../../validators/auth.validator.js';
+import { loginSchema } from '../../utils/auth.js';
 import { loginService } from '../../services/auth/login.js';
 import logger from '../../utils/logger.js';
+import { z } from 'zod';
 
 export const loginController = {
   async login(c) {
-
     let body;
 
     try {
@@ -13,14 +13,35 @@ export const loginController = {
       const parseResult = loginSchema.parse(body);
       const { username, password } = parseResult;
 
-      const loginResult = await loginService.loginUser(username, password);
+      const loginResult = await loginService.loginUser(
+        username,
+        password,
+      );
 
-      return c.json(loginResult, 200);
+      const {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        user
+      } = loginResult;
+
+      logger.info({ userId: user.userId, username: user.username }, 'User logged in successfully');
+
+      c.cookie('refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      return c.json({
+        user,
+        accessToken,
+      }, 200);
 
     } catch (error) {
-      logger.error({ err: error, username: body ? body.username : 'Tidak Diketahui' }, 'Gagal melakukan login');
+      logger.error({ err: error, message: error.message }, 'Failed to login user');
 
-      if (error.issues) {
+      if (error instanceof z.ZodError) {
         const details = {};
         error.issues.forEach((issue) => {
           const path = issue.path.join('.');
@@ -34,11 +55,11 @@ export const loginController = {
         }, 400);
       }
 
-      if (error.message === 'Pengguna tidak ditemukan' || error.message === 'Password tidak valid') {
-        return c.json({ error: 'Username atau password salah' }, 401);
+      if (error.message.includes('not found') || error.message.includes('Invalid credentials')) {
+        return c.json({ error: 'Username atau Password salah' }, 401);
       }
 
-      return c.json({ error: 'Gagal melakukan login' }, 500);
+      return c.json({ error: 'Failed to login user' }, 500);
     }
   }
 };

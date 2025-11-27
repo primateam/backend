@@ -1,26 +1,54 @@
-import { tokenSchema } from '../../validators/auth.validator.js';
+import { tokenSchema } from '../../utils/auth.js';
 import { refreshService } from '../../services/auth/refresh.js';
 import logger from '../../utils/logger.js';
+import { z } from 'zod';
 
 export const refreshController = {
   async refresh(c) {
-
     let body;
+    let refreshToken;
 
     try {
-      body = await c.req.json();
+      refreshToken = c.req.cookie('refresh_token');
 
-      const parseResult = tokenSchema.parse(body);
-      const { refresh_token: refreshToken } = parseResult;
+      if (!refreshToken) {
+        body = await c.req.json().catch(() => ({}));
 
-      const newTokens = await refreshService.refreshToken(refreshToken);
 
-      return c.json(newTokens, 200);
+        const validatedBody = tokenSchema.parse(body);
+        refreshToken = validatedBody.refresh_token;
+      }
+
+      if (!refreshToken) {
+        return c.json({ error: 'Refresh token is missing' }, 401);
+      }
+
+      const refreshResult = await refreshService.refreshToken(refreshToken);
+
+      const {
+        access_token: accessToken,
+        refresh_token: newRefreshToken,
+        user,
+      } = refreshResult;
+
+      logger.info({ userId: user.userId, username: user.username }, 'Token refreshed successfully');
+
+      c.cookie('refresh_token', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      return c.json({
+        user,
+        accessToken,
+      }, 200);
 
     } catch (error) {
-      logger.error({ err: error, message: error.message }, 'Gagal melakukan refresh token');
+      logger.error({ err: error, message: error.message }, 'Failed to refresh token');
 
-      if (error.issues) {
+      if (error instanceof z.ZodError) {
         const details = {};
         error.issues.forEach((issue) => {
           const path = issue.path.join('.');
@@ -30,18 +58,19 @@ export const refreshController = {
           status: 400,
           code: 'VALIDATION_ERROR',
           message: 'Validasi input gagal',
-          details: { [error.issues[0].path.join('.')]: error.issues[0].message },
+          details: details,
         }, 400);
       }
 
-      if (error.message === 'Refresh token tidak valid' ||
-        error.message === 'Refresh token telah kedaluwarsa' ||
-        error.message === 'Refresh token tidak ditemukan') {
-
-        return c.json({ error: error.message }, 400);
+      if (error.message.includes('Refresh token tidak valid') ||
+          error.message.includes('Refresh token telah kadaluarsa') ||
+          error.message.includes('Refresh token tidak ditemukan') ||
+          error.message.includes('Pengguna tidak ditemukan'))
+      {
+        return c.json({ error: 'Refresh token invalid atau sudah kadaluarsa' }, 401);
       }
 
-      return c.json({ error: 'Gagal melakukan refresh token' }, 500);
+      return c.json({ error: 'Failed to refresh token' }, 500);
     }
   }
 };
