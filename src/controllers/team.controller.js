@@ -78,11 +78,9 @@ export const teamController = {
 
     try {
       idStr = c.req.param('team_id');
-      const teamId = parseInt(idStr, 10);
 
-      if (isNaN(teamId) || teamId < 1) {
-        return c.json({ error: 'Invalid team_id' }, 400);
-      }
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const teamId = validateParams.id;
 
       const body = await c.req.json();
 
@@ -111,11 +109,9 @@ export const teamController = {
 
     try {
       idStr = c.req.param('team_id');
-      const teamId = parseInt(idStr, 10);
 
-      if (isNaN(teamId) || teamId < 1) {
-        return c.json({ error: 'Invalid team_id' }, 400);
-      }
+      const validateParams = idParamsSchema.parse({ id: idStr });
+      const teamId = validateParams.id;
 
       const deleted = await teamService.deleteTeam(teamId);
       if (!deleted) return c.json({ error: 'Team not found' }, 404);

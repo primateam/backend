@@ -68,6 +68,8 @@ class ProductService {
           ...product,
         });
 
+      logger.info({ productId: created.productId, productName: created.productName }, 'Product created successfully');
+
       return created;
     } catch (error) {
       logger.error({ err: error, payload: sanitizeProductPayload(payload) }, 'Failed to create product');

@@ -73,6 +73,8 @@ class ConversionService {
           ...conversion,
         });
 
+      logger.info({ conversionId: created.conversionId, customerId: created.customerId, productId: created.productId }, 'Conversion created successfully');
+
       return created;
     } catch (error) {
       logger.error({ err: error, payload: sanitizeConversionPayload(payload) }, 'Failed to create conversion');

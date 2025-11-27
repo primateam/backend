@@ -21,7 +21,7 @@ export const customerController = {
       const result = await customerService.getCustomers({ limit, offset });
       return c.json(result);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error }, 'Controller error: failed to get customers');
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   },
@@ -48,8 +48,10 @@ export const customerController = {
   },
 
   async createCustomer(c) {
+    let body;
+
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
 
       // Basic validation for numeric fields
       if (body.age !== undefined && (isNaN(body.age) || body.age < 0 || body.age > 150)) {
@@ -67,7 +69,7 @@ export const customerController = {
       const created = await customerService.createCustomer(body);
       return c.json(created, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, body }, 'Controller error: failed to create customer');
       return c.json({ error: 'Failed to create customer' }, 500);
     }
   },

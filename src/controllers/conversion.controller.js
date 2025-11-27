@@ -21,7 +21,7 @@ export const conversionController = {
       const conversions = await conversionService.getConversions({ limit, offset });
       return c.json(conversions);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, limit: c.req.query('limit'), offset: c.req.query('offset') }, 'Controller error: Failed to fetch conversions');
       return c.json({ error: 'Failed to fetch conversions' }, 500);
     }
   },
@@ -47,8 +47,10 @@ export const conversionController = {
   },
 
   async createConversion(c) {
+    let body;
+
     try {
-      const body = await c.req.json();
+      body = await c.req.json();
 
       // Validate required fields
       if (!body.customerId || !body.productId) {
@@ -71,7 +73,7 @@ export const conversionController = {
       const created = await conversionService.createConversion(body);
       return c.json(created, 201);
     } catch (error) {
-      console.error(error);
+      logger.error({ err: error, body }, 'Controller error: Failed to create conversion');
       return c.json({ error: 'Failed to create conversion' }, 500);
     }
   },

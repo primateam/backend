@@ -117,6 +117,11 @@ class TeamService {
         .delete(team)
         .where(eq(team.teamId, teamId))
         .returning({ teamId: team.teamId });
+
+      if (result.length > 0) {
+        logger.info({ teamId }, 'Team deleted successfully');
+      }
+
       return result.length > 0;
     } catch (error) {
       logger.error({ err: error, teamId }, 'Failed to delete team');
