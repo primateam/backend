@@ -2,6 +2,7 @@ import { db } from '../db/index.js';
 import { user, customer, interaction } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import logger from '../utils/logger.js';
+import bcrypt from 'bcryptjs';
 import { NotFoundError, DatabaseError, ConflictError } from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
 
@@ -110,7 +111,15 @@ class UserService {
 
   async createUser(payload) {
     try {
-      const sanitized = sanitizeUserPayload(payload);
+      const { password, ...restPayload } = payload;
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const sanitized = sanitizeUserPayload({
+        ...restPayload,
+        password: hashedPassword,
+      });
+
       const [created] = await db
         .insert(user)
         .values(sanitized)
@@ -132,6 +141,11 @@ class UserService {
   async updateUser(userId, updates) {
     try {
       const sanitized = sanitizeUserPayload(updates);
+
+      if (sanitized.password) {
+        sanitized.password = await bcrypt.hash(sanitized.password, 10);
+      }
+
       const [updated] = await db
         .update(user)
         .set(sanitized)

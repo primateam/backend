@@ -2,6 +2,7 @@ import { tokenSchema } from '../../utils/auth.js';
 import { refreshService } from '../../services/auth/refresh.js';
 import logger from '../../utils/logger.js';
 import { z } from 'zod';
+import { AppError, UnauthorizedError } from '../../errors/index.js';
 
 export const refreshController = {
   async refresh(c) {
@@ -20,7 +21,7 @@ export const refreshController = {
       }
 
       if (!refreshToken) {
-        return c.json({ error: 'Refresh token is missing' }, 401);
+        throw new UnauthorizedError('Refresh token is missing');
       }
 
       const refreshResult = await refreshService.refreshToken(refreshToken);
@@ -28,10 +29,9 @@ export const refreshController = {
       const {
         access_token: accessToken,
         refresh_token: newRefreshToken,
-        user,
       } = refreshResult;
 
-      logger.info({ userId: user.userId, username: user.username }, 'Token refreshed successfully');
+      logger.info({ userId: 'RefreshSuccess' }, 'Token refreshed successfully');
 
       c.cookie('refresh_token', newRefreshToken, {
         httpOnly: true,
@@ -41,13 +41,10 @@ export const refreshController = {
       });
 
       return c.json({
-        user,
         accessToken,
       }, 200);
 
     } catch (error) {
-      logger.error({ err: error, message: error.message }, 'Failed to refresh token');
-
       if (error instanceof z.ZodError) {
         const details = {};
         error.issues.forEach((issue) => {
@@ -55,6 +52,7 @@ export const refreshController = {
           details[path] = issue.message;
         });
         return c.json({
+          success: false,
           status: 400,
           code: 'VALIDATION_ERROR',
           message: 'Validasi input gagal',
@@ -62,15 +60,13 @@ export const refreshController = {
         }, 400);
       }
 
-      if (error.message.includes('Refresh token tidak valid') ||
-          error.message.includes('Refresh token telah kadaluarsa') ||
-          error.message.includes('Refresh token tidak ditemukan') ||
-          error.message.includes('Pengguna tidak ditemukan'))
-      {
-        return c.json({ error: 'Refresh token invalid atau sudah kadaluarsa' }, 401);
+      if (error instanceof AppError) {
+        throw error;
       }
 
-      return c.json({ error: 'Failed to refresh token' }, 500);
+      logger.error({ err: error, message: error.message }, 'Failed to refresh token');
+
+      throw error;
     }
   }
 };

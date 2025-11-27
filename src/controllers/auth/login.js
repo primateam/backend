@@ -2,6 +2,7 @@ import { loginSchema } from '../../utils/auth.js';
 import { loginService } from '../../services/auth/login.js';
 import logger from '../../utils/logger.js';
 import { z } from 'zod';
+import { UnauthorizedError } from '../../errors/index.js';
 
 export const loginController = {
   async login(c) {
@@ -55,7 +56,8 @@ export const loginController = {
         }, 400);
       }
 
-      if (error.message.includes('not found') || error.message.includes('Invalid credentials')) {
+      if (error instanceof UnauthorizedError) {
+
         return c.json({ error: 'Username atau Password salah' }, 401);
       }
 

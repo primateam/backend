@@ -4,6 +4,7 @@ import { db } from '../../db/index.js';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { UnauthorizedError } from '../../errors/index.js';
 
 if (!process.env.JWT_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
   logger.fatal('JWT key not define at environment variables.');
@@ -21,7 +22,7 @@ class LoginService {
 
       if (foundUser.length === 0) {
         logger.warn({ username }, 'Login attempt failed: user not found');
-        throw new Error('Pengguna tidak ditemukan');
+        throw new UnauthorizedError('Pengguna tidak ditemukan');
       }
 
       const dataUser = foundUser[0];
@@ -30,7 +31,7 @@ class LoginService {
 
       if (!isPasswordValid) {
         logger.warn({ username, userId: dataUser.userId }, 'Login attempt failed: invalid password');
-        throw new Error('Password tidak valid');
+        throw new UnauthorizedError('Password tidak valid');
       }
 
       const expiresIn = process.env.JWT_EXPIRES_IN || '1h';
