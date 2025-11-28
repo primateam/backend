@@ -156,3 +156,10 @@ export const authRelation = relations(auth, ({ one }) => ({
     references: [user.userId]
   }),
 }));
+
+export const idempotency = pgTable('idempotency', {
+  key: varchar('key', { length: 256 }).primaryKey(),  // key dari header Idempotency-Key
+  responseBody: text('response_body').notNull(), // menyimpan JSON stringfy dari response sukses cont: 201
+  statusCode: integer('status_code').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

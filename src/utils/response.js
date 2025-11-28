@@ -6,6 +6,12 @@
  * @returns {Response}
  */
 export function sendSuccess(c, data = null, statusCode = 200) {
+  c.set('idempotencyResponseData', {
+    success: true,
+    data,
+  });
+  c.set('idempotencyResponseStatusCode', statusCode);
+
   return c.json(
     {
       success: true,

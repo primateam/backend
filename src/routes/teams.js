@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { teamController } from '../controllers/team.controller.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import { idempotencyMiddleware } from '../middleware/idempotencyMiddleware.js';
 
 const teamsRouter = new Hono();
 const accessPermission = authMiddleware(['admin', 'manager']);
 
 teamsRouter.get('/', teamController.getTeams);
-teamsRouter.post('/', accessPermission, teamController.createTeam);
+teamsRouter.post('/', idempotencyMiddleware(), accessPermission, teamController.createTeam);
 teamsRouter.get('/:team_id/', teamController.getTeamById);
 teamsRouter.patch('/:team_id/', accessPermission, teamController.updateTeam);
 teamsRouter.delete('/:team_id/', accessPermission, teamController.deleteTeam);
