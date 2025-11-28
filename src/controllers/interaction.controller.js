@@ -13,7 +13,7 @@ export const interactionController = {
   },
 
   async getInteractionById(c) {
-    const interactionId = parseIdParam(c, 'interactions_id');
+    const interactionId = parseIdParam(c, 'interaction_id');
     const found = await interactionService.getInteractionById(interactionId);
     return sendSuccess(c, found);
   },
@@ -26,7 +26,7 @@ export const interactionController = {
   },
 
   async updateInteraction(c) {
-    const interactionId = parseIdParam(c, 'interactions_id');
+    const interactionId = parseIdParam(c, 'interaction_id');
     const body = await parseRequestBody(c);
     const validated = validate(updateInteractionSchema.partial(), body);
     const updated = await interactionService.updateInteraction(interactionId, validated);
@@ -34,7 +34,7 @@ export const interactionController = {
   },
 
   async deleteInteraction(c) {
-    const interactionId = parseIdParam(c, 'interactions_id');
+    const interactionId = parseIdParam(c, 'interaction_id');
     await interactionService.deleteInteraction(interactionId);
     return sendSuccess(c, { deleted: true }, 204);
   },
