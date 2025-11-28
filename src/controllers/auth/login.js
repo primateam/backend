@@ -3,6 +3,7 @@ import { loginService } from '../../services/auth/login.js';
 import logger from '../../utils/logger.js';
 import { z } from 'zod';
 import { UnauthorizedError } from '../../errors/index.js';
+import { sendSuccess } from '../../utils/response.js';
 
 export const loginController = {
   async login(c) {
@@ -22,6 +23,8 @@ export const loginController = {
       const {
         access_token: accessToken,
         refresh_token: refreshToken,
+        token_type: tokenType,
+        expires_in: expiresIn,
         user
       } = loginResult;
 
@@ -34,9 +37,12 @@ export const loginController = {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      return c.json({
+      return sendSuccess(c, {
         user,
-        accessToken,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        token_type: tokenType,
+        expires_in: expiresIn,
       }, 200);
 
     } catch (error) {
@@ -49,19 +55,32 @@ export const loginController = {
           details[path] = issue.message;
         });
         return c.json({
-          status: 400,
-          code: 'VALIDATION_ERROR',
-          message: 'Validasi input gagal',
-          details: details,
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validasi input gagal',
+            details: details,
+          }
         }, 400);
       }
 
       if (error instanceof UnauthorizedError) {
-
-        return c.json({ error: 'Username atau Password salah' }, 401);
+        return c.json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Username atau Password salah',
+          }
+        }, 401);
       }
 
-      return c.json({ error: 'Failed to login user' }, 500);
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to login user',
+        }
+      }, 500);
     }
   }
 };

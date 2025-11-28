@@ -2,6 +2,7 @@ import { tokenSchema } from '../../utils/auth.js';
 import { logoutService } from '../../services/auth/logout.js';
 import logger from '../../utils/logger.js';
 import { z } from 'zod';
+import { sendSuccess } from '../../utils/response.js';
 
 export const logoutController = {
   async logout(c){
@@ -19,7 +20,13 @@ export const logoutController = {
       }
 
       if (!refreshToken) {
-        return c.json({ error: 'Refresh token is missing' }, 401);
+        return c.json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Refresh token is missing'
+          }
+        }, 401);
       }
 
       await logoutService.logout(refreshToken);
@@ -33,7 +40,7 @@ export const logoutController = {
         maxAge: 0,
       });
 
-      return c.json({ message: 'Logout successful' }, 200);
+      return sendSuccess(c, { message: 'Logout successful' }, 200);
 
     } catch (error) {
       logger.error({ err: error, message: error.message }, 'Failed to logout user');
@@ -45,10 +52,12 @@ export const logoutController = {
           details[path] = issue.message;
         });
         return c.json({
-          status: 400,
-          code: 'VALIDATION_ERROR',
-          message: 'Validasi input gagal',
-          details: details,
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validasi input gagal',
+            details: details,
+          }
         }, 400);
       }
 
@@ -62,10 +71,16 @@ export const logoutController = {
           maxAge: 0,
         });
 
-        return c.json({ message: 'Logout successful (Token was already invalid or missing)' }, 200);
+        return sendSuccess(c, { message: 'Logout successful (Token was already invalid or missing)' }, 200);
       }
 
-      return c.json({ error: 'Failed to logout user' }, 500);
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to logout user',
+        }
+      }, 500);
     }
   }
 };

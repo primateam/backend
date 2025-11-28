@@ -1,6 +1,7 @@
 import { registerService } from '../../services/auth/register.js';
 import { registerSchema } from '../../utils/auth.js';
 import logger from '../../utils/logger.js';
+import { sendSuccess } from '../../utils/response.js';
 
 export const registerController = {
   async register(c) {
@@ -20,7 +21,7 @@ export const registerController = {
         role: newUser.role,
       }, 'User registered successfully');
 
-      return c.json(newUser, 201);
+      return sendSuccess(c, newUser, 201);
     } catch (error) {
       logger.error({ err: error, message: error.message }, 'Failed to register user');
 
@@ -31,18 +32,32 @@ export const registerController = {
           details[path] = issue.message;
         });
         return c.json({
-          status: 400,
-          code: 'VALIDATION_ERROR',
-          message: 'Validasi input gagal',
-          details: details,
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validasi input gagal',
+            details: details,
+          }
         }, 400);
       }
 
       if (error.message.includes('already exists')) {
-        return c.json({ error: error.message }, 409);
+        return c.json({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: error.message,
+          }
+        }, 409);
       }
 
-      return c.json({ error: 'Failed to register user' }, 500);
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to register user',
+        }
+      }, 500);
     }
   }
 };

@@ -3,6 +3,7 @@ import { refreshService } from '../../services/auth/refresh.js';
 import logger from '../../utils/logger.js';
 import { z } from 'zod';
 import { AppError, UnauthorizedError } from '../../errors/index.js';
+import { sendSuccess } from '../../utils/response.js';
 
 export const refreshController = {
   async refresh(c) {
@@ -29,9 +30,12 @@ export const refreshController = {
       const {
         access_token: accessToken,
         refresh_token: newRefreshToken,
+        token_type: tokenType,
+        expires_in: expiresIn,
+        user,
       } = refreshResult;
 
-      logger.info({ userId: 'RefreshSuccess' }, 'Token refreshed successfully');
+      logger.info({ userId: user.userId }, 'Token refreshed successfully');
 
       c.cookie('refresh_token', newRefreshToken, {
         httpOnly: true,
@@ -40,8 +44,12 @@ export const refreshController = {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      return c.json({
-        accessToken,
+      return sendSuccess(c, {
+        user,
+        access_token: accessToken,
+        refresh_token: newRefreshToken,
+        token_type: tokenType,
+        expires_in: expiresIn,
       }, 200);
 
     } catch (error) {
@@ -53,15 +61,21 @@ export const refreshController = {
         });
         return c.json({
           success: false,
-          status: 400,
-          code: 'VALIDATION_ERROR',
-          message: 'Validasi input gagal',
-          details: details,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Validasi input gagal',
+            details: details,
+          }
         }, 400);
       }
 
       if (error instanceof AppError) {
         throw error;
+      }
+
+      if (error.message && error.message.includes('token')) {
+        logger.warn({ err: error }, 'Refresh token issue detected.');
+        throw new UnauthorizedError(error.message);
       }
 
       logger.error({ err: error, message: error.message }, 'Failed to refresh token');
