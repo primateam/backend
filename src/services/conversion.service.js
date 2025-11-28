@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { conversion } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import { NotFoundError, DatabaseError } from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
@@ -23,15 +23,30 @@ const sanitizeConversionPayload = (payload) => {
 };
 
 class ConversionService {
-  async getConversions({ limit = 10, offset = 0 } = {}) {
+  async getConversions({ limit = 10, offset = 0, filters } = {}) {
     try {
+      const whereConditions = [];
+
+      if (filters.customerId) {
+        whereConditions.push(eq(conversion.customerId, parseInt(filters.customerId, 10)));
+      }
+      if (filters.productId) {
+        whereConditions.push(eq(conversion.productId, parseInt(filters.productId, 10)));
+      }
+      if (filters.status) {
+        whereConditions.push(eq(conversion.status, filters.status));
+      }
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(conversion);
+        .from(conversion)
+        .where(whereClause);
 
       const conversions = await db
         .select()
         .from(conversion)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 

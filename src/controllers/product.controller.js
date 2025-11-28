@@ -1,12 +1,13 @@
 import { productService } from '../services/product.service.js';
-import { parsePaginationParams, parseIdParam, parseRequestBody } from '../utils/pagination.js';
+import { parsePaginationParams, parseIdParam, parseRequestBody, parseSearchParam } from '../utils/pagination.js';
 import { validate, createProductSchema, updateProductSchema } from '../utils/validation.js';
 import { sendSuccess } from '../utils/response.js';
 
 export const productController = {
   async getProducts(c) {
     const { limit, offset } = parsePaginationParams(c);
-    const products = await productService.getProducts({ limit, offset });
+    const searchQuery = parseSearchParam(c);
+    const products = await productService.getProducts({ limit, offset, searchQuery });
     return sendSuccess(c, products);
   },
 

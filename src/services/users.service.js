@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { user, customer, interaction } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import bcrypt from 'bcryptjs';
 import { NotFoundError, DatabaseError, ConflictError } from '../errors/index.js';
@@ -38,15 +38,39 @@ const sanitizeUserPayload = (payload) => {
 };
 
 class UserService {
-  async getUsers({ limit = 10, offset = 0 } = {}) {
+  async getUsers({ limit = 10, offset = 0, filters, searchQuery } = {}) {
     try {
+      const whereConditions = [];
+
+      if (filters.role) {
+        whereConditions.push(eq(user.role, filters.role));
+      }
+      if (filters.teamId) {
+        whereConditions.push(eq(user.teamId, parseInt(filters.teamId, 10)));
+      }
+
+      if (searchQuery) {
+        const searchLike = `%${searchQuery}%`;
+        whereConditions.push(
+          or(
+            like(user.fullName, searchLike),
+            like(user.username, searchLike),
+            like(user.email, searchLike)
+          )
+        );
+      }
+
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(user);
+        .from(user)
+        .where(whereClause);
 
       const users = await db
         .select(PUBLIC_USER_SELECT)
         .from(user)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 

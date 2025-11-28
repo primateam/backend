@@ -1,12 +1,13 @@
 import { conversionService } from '../services/conversion.service.js';
-import { parsePaginationParams, parseIdParam, parseRequestBody } from '../utils/pagination.js';
+import { parsePaginationParams, parseIdParam, parseRequestBody, parseFilterParams } from '../utils/pagination.js';
 import { validate, createConversionSchema, updateConversionSchema } from '../utils/validation.js';
 import { sendSuccess } from '../utils/response.js';
 
 export const conversionController = {
   async getConversions(c) {
     const { limit, offset } = parsePaginationParams(c);
-    const conversions = await conversionService.getConversions({ limit, offset });
+    const filters = parseFilterParams(c, ['customerId', 'productId', 'status']);
+    const conversions = await conversionService.getConversions({ limit, offset, filters });
     return sendSuccess(c, conversions);
   },
 

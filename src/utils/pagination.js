@@ -71,6 +71,19 @@ export function parseSortParams(c, allowedFields = [], defaultField = 'createdAt
 }
 
 /**
+ * Parse a single search parameter 'q' from query string
+ * @param {Object} c - Hono context
+ * @returns {string | undefined} Search query string
+ */
+export function parseSearchParam(c) {
+  const q = c.req.query('q');
+  if (q !== undefined && q !== null && q.trim() !== '') {
+    return q.trim();
+  }
+  return undefined;
+}
+
+/**
  * Parse filter parameters from query string
  * @param {Object} c - Hono context
  * @param {Array<string>} allowedFields - Allowed fields for filtering

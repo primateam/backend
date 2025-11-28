@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { team, user, customer } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import { NotFoundError, DatabaseError } from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
@@ -30,15 +30,29 @@ const sanitizeTeamPayload = (payload) => {
 };
 
 class TeamService {
-  async getTeams({ limit = 10, offset = 0 } = {}) {
+  async getTeams({ limit = 10, offset = 0, searchQuery } = {}) {
     try {
+      const whereConditions = [];
+
+      if (searchQuery) {
+        const searchLike = `%${searchQuery}%`;
+        whereConditions.push(
+          or(
+            like(team.teamName, searchLike),
+          )
+        );
+      }
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(team);
+        .from(team)
+        .where(whereClause);
 
       const teams = await db
         .select()
         .from(team)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 

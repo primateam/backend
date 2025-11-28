@@ -1,12 +1,13 @@
 import { teamService } from '../services/team.service.js';
-import { parsePaginationParams, parseIdParam, parseRequestBody } from '../utils/pagination.js';
+import { parsePaginationParams, parseIdParam, parseRequestBody, parseSearchParam } from '../utils/pagination.js';
 import { sendSuccess } from '../utils/response.js';
 import { validate, createTeamSchema, updateTeamSchema } from '../utils/validation.js';
 
 export const teamController = {
   async getTeams(c) {
     const { limit, offset } = parsePaginationParams(c);
-    const result = await teamService.getTeams({ limit, offset });
+    const searchQuery = parseSearchParam(c);
+    const result = await teamService.getTeams({ limit, offset, searchQuery });
     return sendSuccess(c, result);
   },
 

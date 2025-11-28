@@ -1,12 +1,14 @@
 import { userService } from '../services/users.service.js';
-import { parsePaginationParams, parseIdParam, parseRequestBody } from '../utils/pagination.js';
+import { parsePaginationParams, parseIdParam, parseRequestBody, parseFilterParams, parseSearchParam } from '../utils/pagination.js';
 import { sendSuccess } from '../utils/response.js';
 import { validate, createUserSchema, updateUserSchema } from '../utils/validation.js';
 
 export const usersController = {
   async getUsers(c) {
     const { limit, offset } = parsePaginationParams(c);
-    const result = await userService.getUsers({ limit, offset });
+    const filters = parseFilterParams(c, ['role', 'teamId']);
+    const searchQuery = parseSearchParam(c);
+    const result = await userService.getUsers({ limit, offset, filters, searchQuery });
     return sendSuccess(c, result);
   },
 

@@ -1,13 +1,14 @@
 import { interactionService } from '../services/interaction.service.js';
-import { parsePaginationParams, parseIdParam, parseRequestBody } from '../utils/pagination.js';
+import { parsePaginationParams, parseIdParam, parseRequestBody, parseFilterParams, parseSearchParam } from '../utils/pagination.js';
 import { validate, createInteractionSchema, updateInteractionSchema } from '../utils/validation.js';
 import { sendSuccess } from '../utils/response.js';
-
 
 export const interactionController = {
   async getInteractions(c) {
     const { limit, offset } = parsePaginationParams(c);
-    const interactions = await interactionService.getInteractions({ limit, offset });
+    const filters = parseFilterParams(c, ['customerId', 'userId', 'contactMethod', 'outcome']);
+    const searchQuery = parseSearchParam(c);
+    const interactions = await interactionService.getInteractions({ limit, offset, filters, searchQuery });
     return sendSuccess(c, interactions);
   },
 

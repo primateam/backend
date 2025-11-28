@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { interaction } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import { NotFoundError, DatabaseError } from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
@@ -28,15 +28,42 @@ const sanitizeInteractionPayload = (payload) => {
 };
 
 class InteractionService {
-  async getInteractions({ limit = 10, offset = 0 } = {}) {
+  async getInteractions({ limit = 10, offset = 0, filters, searchQuery } = {}) {
     try {
+      const whereConditions = [];
+
+      if (filters.customerId) {
+        whereConditions.push(eq(interaction.customerId, parseInt(filters.customerId, 10)));
+      }
+      if (filters.userId) {
+        whereConditions.push(eq(interaction.userId, parseInt(filters.userId, 10)));
+      }
+      if (filters.contactMethod) {
+        whereConditions.push(eq(interaction.contactMethod, filters.contactMethod));
+      }
+      if (filters.outcome) {
+        whereConditions.push(eq(interaction.outcome, filters.outcome));
+      }
+
+      if (searchQuery) {
+        const searchLike = `%${searchQuery}%`;
+        whereConditions.push(
+          or(
+            like(interaction.notes, searchLike),
+          )
+        );
+      }
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(interaction);
+        .from(interaction)
+        .where(whereClause);
 
       const interactions = await db
         .select()
         .from(interaction)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 

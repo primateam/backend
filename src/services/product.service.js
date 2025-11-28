@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { product, conversion } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import { NotFoundError, DatabaseError } from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
@@ -18,15 +18,30 @@ const sanitizeProductPayload = (payload) => {
 };
 
 class ProductService {
-  async getProducts({ limit = 10, offset = 0 } = {}) {
+  async getProducts({ limit = 10, offset = 0, searchQuery } = {}) {
     try {
+      const whereConditions = [];
+
+      if (searchQuery) {
+        const searchLike = `%${searchQuery}%`;
+        whereConditions.push(
+          or(
+            like(product.productName, searchLike),
+            like(product.description, searchLike),
+          )
+        );
+      }
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(product);
+        .from(product)
+        .where(whereClause);
 
       const products = await db
         .select()
         .from(product)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 

@@ -1,12 +1,14 @@
 import { customerService } from '../services/customer.service.js';
-import { parsePaginationParams, parseIdParam, parseRequestBody } from '../utils/pagination.js';
+import { parsePaginationParams, parseIdParam, parseRequestBody, parseFilterParams, parseSearchParam } from '../utils/pagination.js';
 import { sendSuccess } from '../utils/response.js';
 import { validate, createCustomerSchema, updateCustomerSchema } from '../utils/validation.js';
 
 export const customerController = {
   async getCustomers(c) {
     const { limit, offset } = parsePaginationParams(c);
-    const result = await customerService.getCustomers({ limit, offset });
+    const filters = parseFilterParams(c, ['job', 'education', 'leadStatus', 'assignedUserId']);
+    const searchQuery = parseSearchParam(c);
+    const result = await customerService.getCustomers({ limit, offset, filters, searchQuery });
     return sendSuccess(c, result);
   },
 

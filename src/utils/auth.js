@@ -4,14 +4,14 @@ const UserRoleEnum = z.enum(['admin', 'manager', 'sales']);
 
 export const registerSchema = z.object({
   fullName: z.string({
-    required_error: 'Nama lengkap (fullName) wajib diisi'
-  }).min(1, 'Nama lengkap tidak boleh kosong'),
+    required_error: 'FullName is required'
+  }).min(1, 'Full Name not null'),
 
   username: z.string({
-    required_error: 'Username wajib diisi'
+    required_error: 'Username is required'
   })
-    .min(3, 'Username minimal 3 karakter')
-    .max(50, 'Username maksimal 50 karakter')
+    .min(3, 'Username min 3 character')
+    .max(50, 'Username maks 50 character')
     .regex(/^[a-zA-Z0-9_]+$/, 'Username hanya boleh mengandung huruf, angka, dan underscore'),
 
   email: z.string({

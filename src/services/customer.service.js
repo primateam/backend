@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { customer, interaction } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import { NotFoundError, DatabaseError } from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
@@ -32,15 +32,42 @@ const sanitizeCustomerPayload = (payload) => {
 };
 
 class CustomerService {
-  async getCustomers({ limit = 10, offset = 0 } = {}) {
+  async getCustomers({ limit = 10, offset = 0, filters, searchQuery } = {}) {
     try {
+      const whereConditions = [];
+
+      const numericFields = ['assignedUserId'];
+      for (const field of CUSTOMER_FIELDS) {
+        if (filters[field] !== undefined) {
+          if (numericFields.includes(field)) {
+            whereConditions.push(eq(customer[field], parseInt(filters[field], 10)));
+          } else {
+            whereConditions.push(eq(customer[field], filters[field]));
+          }
+        }
+      }
+
+      if (searchQuery) {
+        const searchLike = `%${searchQuery}%`;
+        whereConditions.push(
+          or(
+            like(customer.job, searchLike),
+            like(customer.maritalStatus, searchLike),
+            like(customer.education, searchLike),
+          )
+        );
+      }
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(customer);
+        .from(customer)
+        .where(whereClause);
 
       const customers = await db
         .select()
         .from(customer)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 
