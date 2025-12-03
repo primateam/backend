@@ -19,7 +19,7 @@ Backend API untuk aplikasi Prima, dibangun menggunakan [Hono](https://hono.dev/)
 - [Konfigurasi Environment](#konfigurasi-environment)
 - [Struktur Proyek](#struktur-proyek)
 - [CI/CD](#cicd)
-- [Lisensi](#lisensi)
+- [Troubleshooting](#troubleshooting)
 
 ## Tentang Proyek
 

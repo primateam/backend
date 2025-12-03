@@ -19,7 +19,7 @@ Backend API for Prima application, built using [Hono](https://hono.dev/) framewo
 - [Environment Configuration](#environment-configuration)
 - [Project Structure](#project-structure)
 - [CI/CD](#cicd)
-- [License](#license)
+- [Troubleshooting](#troubleshooting)
 
 ## About the Project
 
