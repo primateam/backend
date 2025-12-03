@@ -1,7 +1,17 @@
 import { db } from '../db/index.js';
 import { user, customer, interaction } from '../db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
+import bcrypt from 'bcryptjs';
+import {
+  NotFoundError,
+  DatabaseError,
+  ConflictError,
+  ForeignKeyError,
+  getPostgresErrorCode,
+  getPostgresConstraint,
+} from '../errors/index.js';
+import { buildPaginatedResponse } from '../utils/response.js';
 
 const USER_FIELDS = [
   'fullName',
@@ -34,30 +44,75 @@ const sanitizeUserPayload = (payload) => {
   return sanitized;
 };
 
+/**
+ * Handle PostgreSQL constraint errors for user operations
+ * @param {Error} error - The error from the database
+ * @throws {ConflictError|ForeignKeyError} - Appropriate error based on constraint type
+ */
+function handleUserConstraintError(error) {
+  const errorCode = getPostgresErrorCode(error);
+  const constraint = getPostgresConstraint(error);
+
+  // Unique constraint violation (duplicate username/email)
+  if (errorCode === '23505') {
+    const field = constraint?.includes('username') ? 'username' : 'email';
+    throw new ConflictError(`User with this ${field} already exists`, field);
+  }
+
+  // Foreign key constraint violation (e.g., invalid teamId)
+  if (errorCode === '23503') {
+    if (constraint?.includes('team')) {
+      throw new ForeignKeyError(
+        'The specified team does not exist',
+        constraint,
+      );
+    }
+    throw new ForeignKeyError('Referenced resource does not exist', constraint);
+  }
+}
+
 class UserService {
-  async getUsers({ limit = 10, offset = 0 } = {}) {
+  async getUsers({ limit = 10, offset = 0, filters, searchQuery } = {}) {
     try {
+      const whereConditions = [];
+
+      if (filters.role) {
+        whereConditions.push(eq(user.role, filters.role));
+      }
+      if (filters.teamId) {
+        whereConditions.push(eq(user.teamId, parseInt(filters.teamId, 10)));
+      }
+
+      if (searchQuery) {
+        const searchLike = `%${searchQuery}%`;
+        whereConditions.push(
+          or(
+            like(user.fullName, searchLike),
+            like(user.username, searchLike),
+            like(user.email, searchLike),
+          ),
+        );
+      }
+
+      const whereClause =
+        whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
-        .from(user);
+        .from(user)
+        .where(whereClause);
 
       const users = await db
         .select(PUBLIC_USER_SELECT)
         .from(user)
+        .where(whereClause)
         .limit(limit)
         .offset(offset);
 
-      return {
-        data: users,
-        pagination: {
-          total: count,
-          limit,
-          offset,
-        },
-      };
+      return buildPaginatedResponse(users, count, limit, offset);
     } catch (error) {
       logger.error({ err: error, limit, offset }, 'Failed to fetch users');
-      throw new Error(`Failed to fetch users: ${error.message}`);
+      throw new DatabaseError('Failed to fetch users', error);
     }
   }
 
@@ -69,10 +124,17 @@ class UserService {
         .where(eq(user.userId, userId))
         .limit(1);
 
-      return record || null;
+      if (!record) {
+        throw new NotFoundError('User', userId);
+      }
+
+      return record;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, userId }, 'Failed to fetch user by ID');
-      throw new Error('Failed to fetch the user');
+      throw new DatabaseError('Failed to fetch user', error);
     }
   }
 
@@ -86,8 +148,11 @@ class UserService {
 
       return record || null;
     } catch (error) {
-      logger.error({ err: error, username }, 'Failed to fetch user by username');
-      throw new Error('Failed to fetch user by username');
+      logger.error(
+        { err: error, username },
+        'Failed to fetch user by username',
+      );
+      throw new DatabaseError('Failed to fetch user by username', error);
     }
   }
 
@@ -102,83 +167,143 @@ class UserService {
       return record || null;
     } catch (error) {
       logger.error({ err: error, email }, 'Failed to fetch user by email');
-      throw new Error('Failed to fetch user by email');
+      throw new DatabaseError('Failed to fetch user by email', error);
     }
   }
 
   async createUser(payload) {
     try {
-      const sanitized = sanitizeUserPayload(payload);
+      const { password, ...restPayload } = payload;
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const sanitized = sanitizeUserPayload({
+        ...restPayload,
+        password: hashedPassword,
+      });
+
       const [created] = await db
         .insert(user)
         .values(sanitized)
         .returning(PUBLIC_USER_SELECT);
 
-      logger.info({ userId: created.userId, username: created.username }, 'User created');
+      logger.info(
+        { userId: created.userId, username: created.username },
+        'User created',
+      );
       return created;
     } catch (error) {
-      logger.error({ err: error, payload: sanitizeUserPayload(payload) }, 'Failed to create user');
-      throw new Error('Failed to create user');
+      // Check for constraint violations and throw appropriate errors
+      handleUserConstraintError(error);
+
+      logger.error(
+        { err: error, payload: sanitizeUserPayload(payload) },
+        'Failed to create user',
+      );
+      throw new DatabaseError('Failed to create user', error);
     }
   }
 
   async updateUser(userId, updates) {
     try {
       const sanitized = sanitizeUserPayload(updates);
+
+      if (sanitized.password) {
+        sanitized.password = await bcrypt.hash(sanitized.password, 10);
+      }
+
       const [updated] = await db
         .update(user)
         .set(sanitized)
         .where(eq(user.userId, userId))
         .returning(PUBLIC_USER_SELECT);
 
-      if (updated) {
-        logger.info({ userId, username: updated.username }, 'User updated');
+      if (!updated) {
+        throw new NotFoundError('User', userId);
       }
-      return updated || null;
+
+      logger.info({ userId, username: updated.username }, 'User updated');
+      return updated;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      // Check for constraint violations and throw appropriate errors
+      handleUserConstraintError(error);
+
       logger.error({ err: error, userId }, 'Failed to update user');
-      throw new Error('Failed to update user');
+      throw new DatabaseError('Failed to update user', error);
     }
   }
 
   async deleteUser(userId) {
     try {
-      const result = await db.delete(user).where(eq(user.userId, userId)).returning({ userId: user.userId });
-      if (result.length > 0) {
-        logger.info({ userId }, 'User deleted');
+      const result = await db
+        .delete(user)
+        .where(eq(user.userId, userId))
+        .returning({ userId: user.userId });
+
+      if (result.length === 0) {
+        throw new NotFoundError('User', userId);
       }
-      return result.length > 0;
+
+      logger.info({ userId }, 'User deleted');
+      return true;
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error({ err: error, userId }, 'Failed to delete user');
-      throw new Error('Failed to delete user');
+      throw new DatabaseError('Failed to delete user', error);
     }
   }
 
   async getUserCustomers(userId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(customer)
+        .where(eq(customer.assignedUserId, userId));
+
+      const customers = await db
         .select()
         .from(customer)
         .where(eq(customer.assignedUserId, userId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(customers, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user customers');
-      throw new Error('Failed to fetch user customers');
+      logger.error(
+        { err: error, userId, limit, offset },
+        'Failed to fetch user customers',
+      );
+      throw new DatabaseError('Failed to fetch user customers', error);
     }
   }
 
   async getUserInteractions(userId, { limit = 10, offset = 0 } = {}) {
     try {
-      return await db
+      const [{ count }] = await db
+        .select({ count: sql`count(*)::int` })
+        .from(interaction)
+        .where(eq(interaction.userId, userId));
+
+      const interactions = await db
         .select()
         .from(interaction)
         .where(eq(interaction.userId, userId))
         .limit(limit)
         .offset(offset);
+
+      return buildPaginatedResponse(interactions, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user interactions');
-      throw new Error('Failed to fetch user interactions');
+      logger.error(
+        { err: error, userId, limit, offset },
+        'Failed to fetch user interactions',
+      );
+      throw new DatabaseError('Failed to fetch user interactions', error);
     }
   }
 }

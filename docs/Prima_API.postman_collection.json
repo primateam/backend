@@ -1,0 +1,1070 @@
+{
+  "info": {
+    "name": "Prima API",
+    "description": "# Prima Backend API\n\nRESTful API for Prima CRM/Lead Management System built with Hono.js, Drizzle ORM, and PostgreSQL.\n\n## Authentication\n\nMost endpoints require JWT Bearer authentication. Use the **Login** endpoint to obtain tokens, which are automatically saved to environment variables.\n\n## Environment Variables\n\n| Variable | Description |\n|----------|-------------|\n| `baseUrl` | API base URL (e.g., `http://localhost:3000`) |\n| `accessToken` | JWT access token (auto-saved on login) |\n| `refreshToken` | JWT refresh token (auto-saved on login) |\n| `userId` | Current logged-in user ID |\n| `createdUserId` | ID of user created via Create User endpoint |\n| `teamId` | Team ID for testing |\n| `customerId` | Customer ID for testing |\n| `productId` | Product ID for testing |\n| `interactionId` | Interaction ID for testing |\n| `conversionId` | Conversion ID for testing |\n\n## Recommended Test Order\n\n1. **Auth:** Register → Login\n2. **Teams:** Create Team → Get/Update Team\n3. **Users:** Create User → Get/Update User\n4. **Customers:** Create Customer → Get/Update Customer\n5. **Products:** Create Product → Get/Update Product\n6. **Interactions:** Create Interaction → Get/Update Interaction\n7. **Conversions:** Create Conversion → Get/Update Conversion\n8. **Cleanup:** Delete resources (run last)\n9. **Logout:** Invalidate tokens (run last)\n\n## Notes\n\n- All `POST` endpoints support idempotency via `Idempotency-Key` header\n- Pagination is supported via `limit` and `offset` query parameters\n- Delete operations are grouped in the **Cleanup** folder to prevent foreign key errors",
+    "_postman_id": "prima-api-collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.userId) {",
+                  "        pm.environment.set('userId', response.data.userId);",
+                  "        console.log('User registered, ID saved: ' + response.data.userId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"username\": \"johndoe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "register"]
+            },
+            "description": "Register a new user without team assignment.\n\n**Roles:** `admin`, `manager`, `sales`\n\n**Note:** First user should be admin. Create team first if you want to assign teamId."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data) {",
+                  "        if (response.data.access_token) {",
+                  "            pm.environment.set('accessToken', response.data.access_token);",
+                  "        }",
+                  "        if (response.data.refresh_token) {",
+                  "            pm.environment.set('refreshToken', response.data.refresh_token);",
+                  "        }",
+                  "        if (response.data.user && response.data.user.userId) {",
+                  "            pm.environment.set('userId', response.data.user.userId);",
+                  "        }",
+                  "        console.log('Login successful, tokens saved');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"johndoe\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "login"]
+            },
+            "description": "Login and get JWT tokens.\n\n**Note:** Access token is automatically saved to environment variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data) {",
+                  "        if (response.data.access_token) {",
+                  "            pm.environment.set('accessToken', response.data.access_token);",
+                  "        }",
+                  "        if (response.data.refresh_token) {",
+                  "            pm.environment.set('refreshToken', response.data.refresh_token);",
+                  "        }",
+                  "        console.log('Tokens refreshed successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "refresh"]
+            },
+            "description": "Refresh access token using refresh token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Teams",
+      "description": "Team management endpoints (🔒 Requires authentication)\n\n**Note:** Create teams BEFORE creating users with teamId",
+      "item": [
+        {
+          "name": "Create Team",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.teamId) {",
+                  "        pm.environment.set('teamId', response.data.teamId);",
+                  "        console.log('Team ID saved: ' + response.data.teamId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamName\": \"Sales Team Alpha\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams"]
+            },
+            "description": "Create a new team without manager.\n\n**Note:** You can add managerId later via update, after creating a user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Teams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Get all teams with pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Team by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams/{{teamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams", "{{teamId}}"]
+            },
+            "description": "Get a specific team by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Team",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamName\": \"Sales Team Alpha Updated\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams/{{teamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams", "{{teamId}}"]
+            },
+            "description": "Update a team's name or manager."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Team Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams/{{teamId}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams", "{{teamId}}", "users"]
+            },
+            "description": "Get all users (members) of a specific team."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Team Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams/{{teamId}}/customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams", "{{teamId}}", "customers"]
+            },
+            "description": "Get all customers assigned to users in this team."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User management endpoints (🔒 Requires authentication)",
+      "item": [
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.userId) {",
+                  "        pm.environment.set('createdUserId', response.data.userId);",
+                  "        console.log('Created User ID saved: ' + response.data.userId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane Smith\",\n  \"username\": \"janesmith\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"sales\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users"]
+            },
+            "description": "Create a new user (admin only).\n\n**Roles:** `admin`, `manager`, `sales`\n\n**Note:** Add `teamId` to assign user to a team."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/users?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" },
+                { "key": "role", "value": "sales", "disabled": true },
+                { "key": "teamId", "value": "{{teamId}}", "disabled": true },
+                { "key": "q", "value": "john", "disabled": true }
+              ]
+            },
+            "description": "Get all users with pagination and optional filters.\n\n**Filters:** `role`, `teamId`, `q` (search)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users", "{{userId}}"]
+            },
+            "description": "Get a specific user by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe Updated\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users", "{{userId}}"]
+            },
+            "description": "Update a user's information."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/users/{{userId}}/customers?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users", "{{userId}}", "customers"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Get customers assigned to a specific user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Interactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/users/{{userId}}/interactions?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users", "{{userId}}", "interactions"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Get interactions by a specific user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "description": "Customer management endpoints (🔒 Requires authentication)",
+      "item": [
+        {
+          "name": "Create Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.customerId) {",
+                  "        pm.environment.set('customerId', response.data.customerId);",
+                  "        console.log('Customer ID saved: ' + response.data.customerId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"age\": 35,\n  \"job\": \"Engineer\",\n  \"maritalStatus\": \"married\",\n  \"education\": \"university.degree\",\n  \"hasCreditDefault\": false,\n  \"balance\": 5000.00,\n  \"housingLoan\": true,\n  \"personalLoan\": false,\n  \"predictionScore\": 0.75,\n  \"customerSegment\": \"high-value\",\n  \"leadStatus\": \"new\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers"]
+            },
+            "description": "Create a new customer without assigned user.\n\n**Lead Status:** `new`, `contacted`, `qualified`, `unqualified`, `converted`, `lost`\n\n**Note:** Add `assignedUserId` field to assign to a user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" },
+                { "key": "leadStatus", "value": "new", "disabled": true },
+                {
+                  "key": "customerSegment",
+                  "value": "high-value",
+                  "disabled": true
+                },
+                {
+                  "key": "assignedUserId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "hasCreditDefault",
+                  "value": "false",
+                  "disabled": true
+                },
+                { "key": "q", "value": "engineer", "disabled": true }
+              ]
+            },
+            "description": "Get all customers with pagination and optional filters.\n\n**Filters:** `leadStatus`, `customerSegment`, `assignedUserId`, `hasCreditDefault`, `q` (search)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", "{{customerId}}"]
+            },
+            "description": "Get a specific customer by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadStatus\": \"contacted\",\n  \"assignedUserId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", "{{customerId}}"]
+            },
+            "description": "Update a customer's information."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Customer to User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignedUserId\": {{userId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", "{{customerId}}"]
+            },
+            "description": "Assign a customer to a user (sales rep)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Interactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers/{{customerId}}/interactions?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", "{{customerId}}", "interactions"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Get all interactions for a specific customer."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "description": "Product management endpoints (🔒 Requires authentication)",
+      "item": [
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.productId) {",
+                  "        pm.environment.set('productId', response.data.productId);",
+                  "        console.log('Product ID saved: ' + response.data.productId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Premium Savings Account\",\n  \"description\": \"High-yield savings account with premium benefits\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products"]
+            },
+            "description": "Create a new product."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/products?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Get all products with pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", "{{productId}}"]
+            },
+            "description": "Get a specific product by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Premium Savings Account Plus\",\n  \"description\": \"Updated description with more benefits\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", "{{productId}}"]
+            },
+            "description": "Update a product's information."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Conversions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/products/{{productId}}/conversions?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", "{{productId}}", "conversions"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            },
+            "description": "Get all conversions for a specific product."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Interactions",
+      "description": "Interaction management endpoints (🔒 Requires authentication)\n\n**Note:** Requires existing customer and user",
+      "item": [
+        {
+          "name": "Create Interaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.interactionId) {",
+                  "        pm.environment.set('interactionId', response.data.interactionId);",
+                  "        console.log('Interaction ID saved: ' + response.data.interactionId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure customerId and userId are set",
+                  "if (!pm.environment.get('customerId')) {",
+                  "    console.warn('Warning: customerId not set. Create a customer first.');",
+                  "}",
+                  "if (!pm.environment.get('userId')) {",
+                  "    console.warn('Warning: userId not set. Login first.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"userId\": {{userId}},\n  \"contactMethod\": \"phone\",\n  \"outcome\": \"successful\",\n  \"durationSeconds\": 300,\n  \"notes\": \"Customer interested in product demo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/interactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "interactions"]
+            },
+            "description": "Create a new interaction.\n\n**Prerequisites:** Create customer and login first!\n\n**Contact Methods:** `email`, `phone`, `meeting`, `sms`, `other`\n\n**Outcomes:** `successful`, `unsuccessful`, `no_answer`, `follow_up_required`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Interactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/interactions?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "interactions"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" },
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "disabled": true
+                },
+                { "key": "userId", "value": "{{userId}}", "disabled": true },
+                { "key": "contactMethod", "value": "phone", "disabled": true },
+                { "key": "outcome", "value": "successful", "disabled": true }
+              ]
+            },
+            "description": "Get all interactions with pagination and optional filters.\n\n**Filters:** `customerId`, `userId`, `contactMethod`, `outcome`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Interaction by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/interactions/{{interactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "interactions", "{{interactionId}}"]
+            },
+            "description": "Get a specific interaction by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Interaction",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"follow_up_required\",\n  \"notes\": \"Customer requested follow-up next week\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/interactions/{{interactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "interactions", "{{interactionId}}"]
+            },
+            "description": "Update an existing interaction."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Conversions",
+      "description": "Conversion tracking endpoints (🔒 Requires authentication)\n\n**Note:** Requires existing customer and product",
+      "item": [
+        {
+          "name": "Create Conversion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.conversionId) {",
+                  "        pm.environment.set('conversionId', response.data.conversionId);",
+                  "        console.log('Conversion ID saved: ' + response.data.conversionId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure customerId and productId are set",
+                  "if (!pm.environment.get('customerId')) {",
+                  "    console.warn('Warning: customerId not set. Create a customer first.');",
+                  "}",
+                  "if (!pm.environment.get('productId')) {",
+                  "    console.warn('Warning: productId not set. Create a product first.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": {{customerId}},\n  \"productId\": {{productId}},\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/conversions",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "conversions"]
+            },
+            "description": "Create a new conversion.\n\n**Prerequisites:** Create customer and product first!\n\n**Status:** `pending`, `completed`, `cancelled`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Conversions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/conversions?limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "conversions"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" },
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "productId",
+                  "value": "{{productId}}",
+                  "disabled": true
+                },
+                { "key": "status", "value": "pending", "disabled": true }
+              ]
+            },
+            "description": "Get all conversions with pagination and optional filters.\n\n**Filters:** `customerId`, `productId`, `status`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Conversion by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/conversions/{{conversionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "conversions", "{{conversionId}}"]
+            },
+            "description": "Get a specific conversion by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Conversion",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/conversions/{{conversionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "conversions", "{{conversionId}}"]
+            },
+            "description": "Update a conversion's status."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        },
+        "description": "Check if the server is running."
+      },
+      "response": []
+    },
+    {
+      "name": "Cleanup (Run Last)",
+      "description": "⚠️ **DELETE OPERATIONS** - Run these LAST!\n\nThese endpoints delete resources. Running them before other tests will cause foreign key errors.\n\n**Recommended order:**\n1. Delete Conversion (depends on customer & product)\n2. Delete Interaction (depends on customer & user)\n3. Delete Customer\n4. Delete Product\n5. Delete User (the created one, not logged-in user)\n6. Delete Team",
+      "item": [
+        {
+          "name": "Delete Conversion",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/conversions/{{conversionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "conversions", "{{conversionId}}"]
+            },
+            "description": "Delete a conversion.\n\n⚠️ Run this before deleting customers or products."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Interaction",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/interactions/{{interactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "interactions", "{{interactionId}}"]
+            },
+            "description": "Delete an interaction.\n\n⚠️ Run this before deleting customers or users."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/customers/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", "{{customerId}}"]
+            },
+            "description": "Delete a customer.\n\n⚠️ Delete interactions and conversions first!"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", "{{productId}}"]
+            },
+            "description": "Delete a product.\n\n⚠️ Delete conversions first!"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/users/{{createdUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users", "{{createdUserId}}"]
+            },
+            "description": "Delete a user (admin only).\n\n**Note:** Uses `createdUserId` to avoid deleting the logged-in user.\n\n⚠️ Delete interactions first!"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Team",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/teams/{{teamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "teams", "{{teamId}}"]
+            },
+            "description": "Delete a team.\n\n⚠️ Remove users from team first or delete users!"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Logout (Run Last)",
+      "description": "⚠️ Run this LAST - it will invalidate your tokens!",
+      "item": [
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('accessToken', '');",
+                  "    pm.environment.set('refreshToken', '');",
+                  "    console.log('Logged out and tokens cleared');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "logout"]
+            },
+            "description": "Logout and invalidate refresh token.\n\n⚠️ **WARNING:** This will invalidate your tokens. Run this LAST when testing!"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

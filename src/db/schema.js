@@ -142,3 +142,24 @@ export const conversionRelations = relations(conversion, ({ one }) => ({
     references: [product.productId]
   }),
 }));
+
+//revoking refresh token
+
+export const auth = pgTable('authentication', {
+  token: text('token').notNull().primaryKey(),
+  userId: integer('user_id').notNull().references(() => user.userId, { onDelete: 'cascade' }),
+});
+
+export const authRelation = relations(auth, ({ one }) => ({
+  user: one(user, {
+    fields: [auth.userId],
+    references: [user.userId]
+  }),
+}));
+
+export const idempotency = pgTable('idempotency', {
+  key: varchar('key', { length: 256 }).primaryKey(),  // key dari header Idempotency-Key
+  responseBody: text('response_body').notNull(), // menyimpan JSON stringfy dari response sukses cont: 201
+  statusCode: integer('status_code').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
