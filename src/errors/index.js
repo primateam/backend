@@ -38,6 +38,16 @@ export class ConflictError extends AppError {
   }
 }
 
+export class ForeignKeyError extends AppError {
+  constructor(
+    message = 'Referenced resource does not exist',
+    constraint = null,
+  ) {
+    super(message, 400, 'FOREIGN_KEY_VIOLATION');
+    this.constraint = constraint;
+  }
+}
+
 export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized') {
     super(message, 401, 'UNAUTHORIZED');
@@ -57,3 +67,67 @@ export class DatabaseError extends AppError {
   }
 }
 
+/**
+ * Helper function to extract PostgreSQL error code from Drizzle ORM errors
+ * Drizzle wraps the original pg error, so we need to check multiple places
+ * @param {Error} error - The error object from Drizzle
+ * @returns {string|null} - PostgreSQL error code or null
+ */
+export function getPostgresErrorCode(error) {
+  // Direct code property
+  if (error.code) {
+    return error.code;
+  }
+  // Drizzle wraps the original error in cause
+  if (error.cause?.code) {
+    return error.cause.code;
+  }
+  // Some versions wrap it in originalError
+  if (error.originalError?.code) {
+    return error.originalError.code;
+  }
+  return null;
+}
+
+/**
+ * Helper function to extract PostgreSQL constraint name from error
+ * @param {Error} error - The error object from Drizzle
+ * @returns {string|null} - Constraint name or null
+ */
+export function getPostgresConstraint(error) {
+  if (error.constraint) {
+    return error.constraint;
+  }
+  if (error.cause?.constraint) {
+    return error.cause.constraint;
+  }
+  if (error.originalError?.constraint) {
+    return error.originalError.constraint;
+  }
+  return null;
+}
+
+/**
+ * Parse a foreign key constraint name to extract the referenced table
+ * Convention: {table}_{column}_{referenced_table}_{referenced_column}_fk
+ * Example: interaction_customer_id_customer_customer_id_fk -> customer
+ * @param {string} constraint - The constraint name
+ * @returns {string|null} - The referenced table name or null
+ */
+export function parseConstraintForTable(constraint) {
+  if (!constraint) return null;
+
+  // Match pattern like: interaction_customer_id_customer_customer_id_fk
+  // We want to extract the third part which is the referenced table
+  const parts = constraint.split('_');
+
+  // Find the pattern: after the column name (ending with 'id'),
+  // the next word is the referenced table
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (parts[i] === 'id' && i + 1 < parts.length && parts[i + 1] !== 'fk') {
+      return parts[i + 1];
+    }
+  }
+
+  return null;
+}

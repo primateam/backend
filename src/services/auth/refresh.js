@@ -63,7 +63,7 @@ class RefreshService {
         teamId: dataUser.teamId,
       },
       process.env.JWT_SECRET,
-      { expiresIn }
+      { expiresIn },
     );
 
     const newRefreshToken = jwt.sign(
@@ -71,7 +71,7 @@ class RefreshService {
         userId: dataUser.userId,
       },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: refreshExpiresIn }
+      { expiresIn: refreshExpiresIn },
     );
 
     await db.insert(auth).values({
@@ -86,6 +86,13 @@ class RefreshService {
       refresh_token: newRefreshToken,
       token_type: 'Bearer',
       expires_in: expiresIn,
+      user: {
+        userId: dataUser.userId,
+        username: dataUser.username,
+        email: dataUser.email,
+        role: dataUser.role,
+        teamId: dataUser.teamId,
+      },
     };
   }
 }
