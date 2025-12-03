@@ -1,3 +1,4 @@
+import { getCookie, setCookie } from 'hono/cookie';
 import { tokenSchema } from '../../utils/auth.js';
 import { logoutService } from '../../services/auth/logout.js';
 import logger from '../../utils/logger.js';
@@ -5,12 +6,12 @@ import { z } from 'zod';
 import { sendSuccess } from '../../utils/response.js';
 
 export const logoutController = {
-  async logout(c){
+  async logout(c) {
     let body;
     let refreshToken;
 
     try {
-      refreshToken = c.req.cookie('refresh_token');
+      refreshToken = getCookie(c, 'refresh_token');
 
       if (!refreshToken) {
         body = await c.req.json().catch(() => ({}));
@@ -20,20 +21,23 @@ export const logoutController = {
       }
 
       if (!refreshToken) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Refresh token is missing'
-          }
-        }, 401);
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Refresh token is missing',
+            },
+          },
+          401,
+        );
       }
 
       await logoutService.logout(refreshToken);
 
       logger.info('User logged out successfully');
 
-      c.cookie('refresh_token', '', {
+      setCookie(c, 'refresh_token', '', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'Strict',
@@ -41,9 +45,11 @@ export const logoutController = {
       });
 
       return sendSuccess(c, { message: 'Logout successful' }, 200);
-
     } catch (error) {
-      logger.error({ err: error, message: error.message }, 'Failed to logout user');
+      logger.error(
+        { err: error, message: error.message },
+        'Failed to logout user',
+      );
 
       if (error instanceof z.ZodError) {
         const details = {};
@@ -51,36 +57,48 @@ export const logoutController = {
           const path = issue.path.join('.');
           details[path] = issue.message;
         });
-        return c.json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Validasi input gagal',
-            details: details,
-          }
-        }, 400);
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Validasi input gagal',
+              details: details,
+            },
+          },
+          400,
+        );
       }
 
       if (error.message.includes('Invalid token')) {
         logger.warn('Logout attempted with an invalid token, clearing cookie.');
 
-        c.cookie('refresh_token', '', {
+        setCookie(c, 'refresh_token', '', {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'Strict',
           maxAge: 0,
         });
 
-        return sendSuccess(c, { message: 'Logout successful (Token was already invalid or missing)' }, 200);
+        return sendSuccess(
+          c,
+          {
+            message: 'Logout successful (Token was already invalid or missing)',
+          },
+          200,
+        );
       }
 
-      return c.json({
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to logout user',
-        }
-      }, 500);
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to logout user',
+          },
+        },
+        500,
+      );
     }
-  }
+  },
 };

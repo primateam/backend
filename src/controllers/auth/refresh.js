@@ -1,3 +1,4 @@
+import { getCookie, setCookie } from 'hono/cookie';
 import { tokenSchema } from '../../utils/auth.js';
 import { refreshService } from '../../services/auth/refresh.js';
 import logger from '../../utils/logger.js';
@@ -10,7 +11,7 @@ export const refreshController = {
     let refreshToken;
 
     try {
-      refreshToken = c.req.cookie('refresh_token');
+      refreshToken = getCookie(c, 'refresh_token');
 
       if (!refreshToken) {
         const body = await c.req.json().catch(() => ({}));
@@ -37,21 +38,24 @@ export const refreshController = {
 
       logger.info({ userId: user.userId }, 'Token refreshed successfully');
 
-      c.cookie('refresh_token', newRefreshToken, {
+      setCookie(c, 'refresh_token', newRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'Strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
       });
 
-      return sendSuccess(c, {
-        user,
-        access_token: accessToken,
-        refresh_token: newRefreshToken,
-        token_type: tokenType,
-        expires_in: expiresIn,
-      }, 200);
-
+      return sendSuccess(
+        c,
+        {
+          user,
+          access_token: accessToken,
+          refresh_token: newRefreshToken,
+          token_type: tokenType,
+          expires_in: expiresIn,
+        },
+        200,
+      );
     } catch (error) {
       if (error instanceof z.ZodError) {
         const details = {};
@@ -59,14 +63,17 @@ export const refreshController = {
           const path = issue.path.join('.');
           details[path] = issue.message;
         });
-        return c.json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Validasi input gagal',
-            details: details,
-          }
-        }, 400);
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Validasi input gagal',
+              details: details,
+            },
+          },
+          400,
+        );
       }
 
       if (error instanceof AppError) {
@@ -78,9 +85,12 @@ export const refreshController = {
         throw new UnauthorizedError(error.message);
       }
 
-      logger.error({ err: error, message: error.message }, 'Failed to refresh token');
+      logger.error(
+        { err: error, message: error.message },
+        'Failed to refresh token',
+      );
 
       throw error;
     }
-  }
+  },
 };
