@@ -2,7 +2,13 @@ import { db } from '../db/index.js';
 import { conversion } from '../db/schema.js';
 import { eq, sql, and } from 'drizzle-orm';
 import logger from '../utils/logger.js';
-import { NotFoundError, DatabaseError } from '../errors/index.js';
+import {
+  NotFoundError,
+  DatabaseError,
+  ForeignKeyError,
+  getPostgresErrorCode,
+  getPostgresConstraint,
+} from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
 
 const CONVERSION_FIELDS = [
@@ -22,21 +28,53 @@ const sanitizeConversionPayload = (payload) => {
   return sanitized;
 };
 
+/**
+ * Handle PostgreSQL constraint errors for conversion operations
+ * @param {Error} error - The error from the database
+ * @throws {ForeignKeyError} - Appropriate error based on constraint type
+ */
+function handleConversionConstraintError(error) {
+  const errorCode = getPostgresErrorCode(error);
+  const constraint = getPostgresConstraint(error);
+
+  // Foreign key constraint violation
+  if (errorCode === '23503') {
+    if (constraint?.includes('customer')) {
+      throw new ForeignKeyError(
+        'The specified customer does not exist',
+        constraint,
+      );
+    }
+    if (constraint?.includes('product')) {
+      throw new ForeignKeyError(
+        'The specified product does not exist',
+        constraint,
+      );
+    }
+    throw new ForeignKeyError('Referenced resource does not exist', constraint);
+  }
+}
+
 class ConversionService {
   async getConversions({ limit = 10, offset = 0, filters } = {}) {
     try {
       const whereConditions = [];
 
       if (filters.customerId) {
-        whereConditions.push(eq(conversion.customerId, parseInt(filters.customerId, 10)));
+        whereConditions.push(
+          eq(conversion.customerId, parseInt(filters.customerId, 10)),
+        );
       }
       if (filters.productId) {
-        whereConditions.push(eq(conversion.productId, parseInt(filters.productId, 10)));
+        whereConditions.push(
+          eq(conversion.productId, parseInt(filters.productId, 10)),
+        );
       }
       if (filters.status) {
         whereConditions.push(eq(conversion.status, filters.status));
       }
-      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+      const whereClause =
+        whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
@@ -52,7 +90,10 @@ class ConversionService {
 
       return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, limit, offset }, 'Failed to fetch conversions');
+      logger.error(
+        { err: error, limit, offset },
+        'Failed to fetch conversions',
+      );
       throw new DatabaseError('Failed to fetch conversions', error);
     }
   }
@@ -74,7 +115,10 @@ class ConversionService {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      logger.error({ err: error, conversionId }, 'Failed to fetch the conversion');
+      logger.error(
+        { err: error, conversionId },
+        'Failed to fetch the conversion',
+      );
       throw new DatabaseError('Failed to fetch the conversion', error);
     }
   }
@@ -87,11 +131,24 @@ class ConversionService {
         .values(sanitized)
         .returning();
 
-      logger.info({ conversionId: created.conversionId, customerId: created.customerId, productId: created.productId }, 'Conversion created successfully');
+      logger.info(
+        {
+          conversionId: created.conversionId,
+          customerId: created.customerId,
+          productId: created.productId,
+        },
+        'Conversion created successfully',
+      );
 
       return created;
     } catch (error) {
-      logger.error({ err: error, payload: sanitizeConversionPayload(payload) }, 'Failed to create conversion');
+      // Check for constraint violations and throw appropriate errors
+      handleConversionConstraintError(error);
+
+      logger.error(
+        { err: error, payload: sanitizeConversionPayload(payload) },
+        'Failed to create conversion',
+      );
       throw new DatabaseError('Failed to create conversion', error);
     }
   }
@@ -115,6 +172,10 @@ class ConversionService {
       if (error instanceof NotFoundError) {
         throw error;
       }
+
+      // Check for constraint violations and throw appropriate errors
+      handleConversionConstraintError(error);
+
       logger.error({ err: error, conversionId }, 'Failed to update conversion');
       throw new DatabaseError('Failed to update conversion', error);
     }
@@ -158,7 +219,10 @@ class ConversionService {
 
       return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, customerId, limit, offset }, 'Failed to fetch customer conversions');
+      logger.error(
+        { err: error, customerId, limit, offset },
+        'Failed to fetch customer conversions',
+      );
       throw new DatabaseError('Failed to fetch customer conversions', error);
     }
   }
@@ -179,11 +243,13 @@ class ConversionService {
 
       return buildPaginatedResponse(conversions, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, productId, limit, offset }, 'Failed to fetch product conversions');
+      logger.error(
+        { err: error, productId, limit, offset },
+        'Failed to fetch product conversions',
+      );
       throw new DatabaseError('Failed to fetch product conversions', error);
     }
   }
 }
 
 export const conversionService = new ConversionService();
-

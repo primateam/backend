@@ -3,7 +3,14 @@ import { user, customer, interaction } from '../db/schema.js';
 import { eq, sql, and, or, like } from 'drizzle-orm';
 import logger from '../utils/logger.js';
 import bcrypt from 'bcryptjs';
-import { NotFoundError, DatabaseError, ConflictError } from '../errors/index.js';
+import {
+  NotFoundError,
+  DatabaseError,
+  ConflictError,
+  ForeignKeyError,
+  getPostgresErrorCode,
+  getPostgresConstraint,
+} from '../errors/index.js';
 import { buildPaginatedResponse } from '../utils/response.js';
 
 const USER_FIELDS = [
@@ -37,6 +44,33 @@ const sanitizeUserPayload = (payload) => {
   return sanitized;
 };
 
+/**
+ * Handle PostgreSQL constraint errors for user operations
+ * @param {Error} error - The error from the database
+ * @throws {ConflictError|ForeignKeyError} - Appropriate error based on constraint type
+ */
+function handleUserConstraintError(error) {
+  const errorCode = getPostgresErrorCode(error);
+  const constraint = getPostgresConstraint(error);
+
+  // Unique constraint violation (duplicate username/email)
+  if (errorCode === '23505') {
+    const field = constraint?.includes('username') ? 'username' : 'email';
+    throw new ConflictError(`User with this ${field} already exists`, field);
+  }
+
+  // Foreign key constraint violation (e.g., invalid teamId)
+  if (errorCode === '23503') {
+    if (constraint?.includes('team')) {
+      throw new ForeignKeyError(
+        'The specified team does not exist',
+        constraint,
+      );
+    }
+    throw new ForeignKeyError('Referenced resource does not exist', constraint);
+  }
+}
+
 class UserService {
   async getUsers({ limit = 10, offset = 0, filters, searchQuery } = {}) {
     try {
@@ -55,12 +89,13 @@ class UserService {
           or(
             like(user.fullName, searchLike),
             like(user.username, searchLike),
-            like(user.email, searchLike)
-          )
+            like(user.email, searchLike),
+          ),
         );
       }
 
-      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+      const whereClause =
+        whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
       const [{ count }] = await db
         .select({ count: sql`count(*)::int` })
@@ -113,7 +148,10 @@ class UserService {
 
       return record || null;
     } catch (error) {
-      logger.error({ err: error, username }, 'Failed to fetch user by username');
+      logger.error(
+        { err: error, username },
+        'Failed to fetch user by username',
+      );
       throw new DatabaseError('Failed to fetch user by username', error);
     }
   }
@@ -149,15 +187,19 @@ class UserService {
         .values(sanitized)
         .returning(PUBLIC_USER_SELECT);
 
-      logger.info({ userId: created.userId, username: created.username }, 'User created');
+      logger.info(
+        { userId: created.userId, username: created.username },
+        'User created',
+      );
       return created;
     } catch (error) {
-      // Handle unique constraint violations (duplicate username/email)
-      if (error.code === '23505') {
-        const field = error.constraint?.includes('username') ? 'username' : 'email';
-        throw new ConflictError(`User with this ${field} already exists`, field);
-      }
-      logger.error({ err: error, payload: sanitizeUserPayload(payload) }, 'Failed to create user');
+      // Check for constraint violations and throw appropriate errors
+      handleUserConstraintError(error);
+
+      logger.error(
+        { err: error, payload: sanitizeUserPayload(payload) },
+        'Failed to create user',
+      );
       throw new DatabaseError('Failed to create user', error);
     }
   }
@@ -186,11 +228,10 @@ class UserService {
       if (error instanceof NotFoundError) {
         throw error;
       }
-      // Handle unique constraint violations
-      if (error.code === '23505') {
-        const field = error.constraint?.includes('username') ? 'username' : 'email';
-        throw new ConflictError(`User with this ${field} already exists`, field);
-      }
+
+      // Check for constraint violations and throw appropriate errors
+      handleUserConstraintError(error);
+
       logger.error({ err: error, userId }, 'Failed to update user');
       throw new DatabaseError('Failed to update user', error);
     }
@@ -198,7 +239,10 @@ class UserService {
 
   async deleteUser(userId) {
     try {
-      const result = await db.delete(user).where(eq(user.userId, userId)).returning({ userId: user.userId });
+      const result = await db
+        .delete(user)
+        .where(eq(user.userId, userId))
+        .returning({ userId: user.userId });
 
       if (result.length === 0) {
         throw new NotFoundError('User', userId);
@@ -231,7 +275,10 @@ class UserService {
 
       return buildPaginatedResponse(customers, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user customers');
+      logger.error(
+        { err: error, userId, limit, offset },
+        'Failed to fetch user customers',
+      );
       throw new DatabaseError('Failed to fetch user customers', error);
     }
   }
@@ -252,7 +299,10 @@ class UserService {
 
       return buildPaginatedResponse(interactions, count, limit, offset);
     } catch (error) {
-      logger.error({ err: error, userId, limit, offset }, 'Failed to fetch user interactions');
+      logger.error(
+        { err: error, userId, limit, offset },
+        'Failed to fetch user interactions',
+      );
       throw new DatabaseError('Failed to fetch user interactions', error);
     }
   }
